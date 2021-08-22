@@ -17,7 +17,7 @@ public class ChatServer {
 
 
     public static void main(String[] args) {
-        connectionHandler();
+        handleNewConnections();
     }
 
 
@@ -27,13 +27,16 @@ public class ChatServer {
 
 
     static synchronized void addClientConnection(ClientConnection connection) {
-        broadcast(String.format("[Server] : %s has entered the Main Hall", connection.socket.getPort()), roomList.get(0));
+        broadcast(String.format("[Server] : %s has entered the Main Hall", connection.guestName), null);
         connectionList.add(connection);
     }
 
 
     static void broadcast(String message, ChatRoom room) {
-        // broadcasts message to room. If room is null, broadcasts to all presently connected clients
+        /*
+        broadcasts message to room. If room is null, broadcasts to all presently connected clients
+        */
+        System.out.println(message);   // also print for server
         if (room == null) {
             for (ClientConnection connection: connectionList) {
                 connection.sendMessage(message);
@@ -46,8 +49,10 @@ public class ChatServer {
     }
 
 
-    static void connectionHandler() {
-        // handles incoming client connections and moves them to MainHall chatRoom.
+    static void handleNewConnections() {
+        /*
+        handles all new connections to the server as per the described Protocol.
+        */
         ServerSocket serverSocket;
         ChatRoom mainHall = new ChatRoom("MainHall", null);
         addRoom(mainHall);
@@ -61,8 +66,8 @@ public class ChatServer {
                 ClientConnection clientConnection = new ClientConnection(client);
                 Thread clientConnectionThread = new Thread(clientConnection);
                 clientConnectionThread.start();
+                addClientConnection(clientConnection);
             }
-
         } catch (IOException e) {
             e.getStackTrace();
         }
@@ -94,6 +99,7 @@ public class ChatServer {
         private BufferedReader reader;
         private PrintWriter writer;
         private String guestName;
+        private ChatRoom currentRoom;
         private boolean connectionAlive = true;
 
 
@@ -101,11 +107,39 @@ public class ChatServer {
             this.socket = socket;
             this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             this.writer = new PrintWriter(socket.getOutputStream());
+            this.guestName = generateName();
+            this.currentRoom = roomList.get(0);
         }
+
+
+        private static String generateName() {
+            /*
+            Generates the default name for client connections when they join server
+            */
+            return String.format("guest%d", connectionList.size() + 1);
+        }
+
 
         public void sendMessage(String message) {
             writer.print(message);
             writer.flush();
+        }
+
+
+        @Override
+        public void run() {
+            while (connectionAlive) {
+                try {
+                    String input = reader.readLine();
+                    if (input != null) {
+                        broadcast(String.format("[%s] : %s", guestName, input), currentRoom);
+                    } else {
+                        connectionAlive = false;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }
