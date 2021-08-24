@@ -26,9 +26,15 @@ public class ChatServer {
     }
 
 
+    static synchronized void closeClientConnection(ClientConnection connection) {
+        broadcast(String.format("[Server] : %s has left the chat", connection.guestName), null);
+        connectionList.remove(connection);
+    }
+
+
     static synchronized void addClientConnection(ClientConnection connection) {
-        broadcast(String.format("[Server] : %s has entered the Main Hall", connection.guestName), null);
         connectionList.add(connection);
+        broadcast(String.format("[Server] : %s has entered the Main Hall\n", connection.guestName), null);
     }
 
 
@@ -36,15 +42,9 @@ public class ChatServer {
         /*
         broadcasts message to room. If room is null, broadcasts to all presently connected clients
         */
-        System.out.println(message);   // also print for server
-        if (room == null) {
-            for (ClientConnection connection: connectionList) {
-                connection.sendMessage(message);
-            }
-        } else {
-            for (ClientConnection connection: room.roomMembers) {
-                connection.sendMessage(message);
-            }
+        System.out.println(message);
+        for (ClientConnection connection: connectionList) {
+            connection.sendMessage(message+"\n");
         }
     }
 
@@ -66,7 +66,9 @@ public class ChatServer {
                 ClientConnection clientConnection = new ClientConnection(client);
                 Thread clientConnectionThread = new Thread(clientConnection);
                 clientConnectionThread.start();
+
                 addClientConnection(clientConnection);
+
             }
         } catch (IOException e) {
             e.getStackTrace();
@@ -83,10 +85,10 @@ public class ChatServer {
         private final List<ClientConnection> roomMembers = new ArrayList<>();
 
 
-        public ChatRoom(String roomName, ClientConnection connection) {
+        public ChatRoom(String roomName, ClientConnection admin) {
             this.roomName = roomName;
-            this.admin = connection;
-            roomMembers.add(connection);
+            this.admin = admin;
+            roomMembers.add(admin);
         }
     }
 
@@ -126,6 +128,18 @@ public class ChatServer {
         }
 
 
+        public void close() {
+            try {
+                closeClientConnection(this);
+                reader.close();
+                writer.close();
+                socket.close();
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+
+
         @Override
         public void run() {
             while (connectionAlive) {
@@ -140,6 +154,7 @@ public class ChatServer {
                     e.printStackTrace();
                 }
             }
+            close();
         }
     }
 }
