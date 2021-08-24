@@ -27,20 +27,20 @@ public class ChatServer {
 
 
     static synchronized void closeClientConnection(ClientConnection connection) {
-        broadcast(String.format("[Server] : %s has left the chat", connection.guestName), null);
+        broadcastToAll(String.format("[Server] : %s has left the chat", connection.guestName));
         connectionList.remove(connection);
     }
 
 
     static synchronized void addClientConnection(ClientConnection connection) {
         connectionList.add(connection);
-        broadcast(String.format("[Server] : %s has entered the Main Hall\n", connection.guestName), null);
+        broadcastToAll(String.format("[Server] : %s has entered the Main Hall", connection.guestName));
     }
 
 
-    static void broadcast(String message, ChatRoom room) {
+    static void broadcastToAll(String message) {
         /*
-        broadcasts message to room. If room is null, broadcasts to all presently connected clients
+        broadcasts message to all live connections
         */
         System.out.println(message);
         for (ClientConnection connection: connectionList) {
@@ -66,9 +66,8 @@ public class ChatServer {
                 ClientConnection clientConnection = new ClientConnection(client);
                 Thread clientConnectionThread = new Thread(clientConnection);
                 clientConnectionThread.start();
-
                 addClientConnection(clientConnection);
-
+                mainHall.joinRoom(clientConnection);
             }
         } catch (IOException e) {
             e.getStackTrace();
@@ -76,19 +75,37 @@ public class ChatServer {
     }
 
 
-    static class ChatRoom extends Thread {
+    static class ChatRoom {
         /*
         Implements the different rooms. Within chatRoom subclass, we contain list of all users within room.
         */
         private final String roomName;
         private final ClientConnection admin;
-        private final List<ClientConnection> roomMembers = new ArrayList<>();
+        static private final List<ClientConnection> roomMembers = new ArrayList<>();
 
 
         public ChatRoom(String roomName, ClientConnection admin) {
             this.roomName = roomName;
             this.admin = admin;
             roomMembers.add(admin);
+        }
+
+
+        public void joinRoom(ClientConnection connection) {
+            broadcastToAll(String.format("[Server] : %s has joined %s", connection.guestName, roomName));
+            roomMembers.add(connection);
+        }
+
+
+        private void broadcastToRoom(String message) {
+            /*
+            Broadcasts message to ClientConnection's in roomMembers
+            */
+            for (ClientConnection connection: roomMembers) {
+                if (connection != null) {
+                    connection.sendMessage(String.format("[%s] : %s\n", roomName, message));
+                }
+            }
         }
     }
 
@@ -97,11 +114,11 @@ public class ChatServer {
         /*
         Implements the separate client connections
         */
-        private Socket socket;
-        private BufferedReader reader;
-        private PrintWriter writer;
-        private String guestName;
-        private ChatRoom currentRoom;
+        private final Socket socket;
+        private final BufferedReader reader;
+        private final PrintWriter writer;
+        private final String guestName;
+        private final ChatRoom currentRoom;
         private boolean connectionAlive = true;
 
 
@@ -146,7 +163,10 @@ public class ChatServer {
                 try {
                     String input = reader.readLine();
                     if (input != null) {
-                        broadcast(String.format("[%s] : %s", guestName, input), currentRoom);
+                        String finalised = String.format("[%s] : %s", guestName, input);
+
+                        currentRoom.broadcastToRoom(finalised);
+                        System.out.println(finalised);   // I print to server here to ease debuggin
                     } else {
                         connectionAlive = false;
                     }
