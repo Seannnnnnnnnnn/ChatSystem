@@ -21,6 +21,13 @@ public class ChatServer {
     }
 
 
+    static void newIdentity(ClientConnection connection) {
+        /* the server generates a unique id for the client which is guest followed by the smallest integer
+        greater than 0 that is currently not in use by any other connected client, he server tells the client its
+        id using an newIdentity message */
+
+    }
+
     static synchronized void addRoom(ChatRoom roomThread) {
         roomList.add(roomThread);
     }

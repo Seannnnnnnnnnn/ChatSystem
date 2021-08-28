@@ -7,6 +7,7 @@ public class ChatClient {
     private static final int serverPort = 4444;
     private static final String location = "localhost";
     private static final boolean connectionAlive = true;
+    private static String id;
 
     public static void main(String[] args) {
         establishConnection();
