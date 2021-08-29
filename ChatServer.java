@@ -1,5 +1,7 @@
 package com.ChatRoomApplication;
 
+import org.json.simple.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -20,6 +22,15 @@ public class ChatServer {
         handleNewConnections();
     }
 
+
+    static String marshallToJSON(String messageToClient) {
+        /* Method for marshalling messages to client */
+        JSONObject messageJSON = new JSONObject();
+        messageJSON.put("type", "message");
+        messageJSON.put("content", messageToClient);
+        return messageJSON.toString();
+
+    }
 
     static void newIdentity(ClientConnection connection) {
         /* the server generates a unique id for the client which is guest followed by the smallest integer
@@ -147,7 +158,9 @@ public class ChatServer {
 
 
         public void sendMessage(String message) {
-            writer.print(message);
+            String marshalled = marshallToJSON(message);
+            writer.print(marshalled);
+            writer.print("\n");          // I have no idea why, though removing this line breaks the whole thing //
             writer.flush();
         }
 

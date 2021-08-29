@@ -1,5 +1,9 @@
 package com.ChatRoomApplication;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 import java.io.*;
 import java.net.Socket;
 
@@ -24,6 +28,17 @@ public class ChatClient {
 
         } catch (IOException e) {
             e.getStackTrace();
+        }
+    }
+
+    public static void unmarshallJSON(String serverMessage) {
+        /* Unmarshalls messages received from server */
+        JSONParser unmarshaller = new JSONParser();
+        try {
+            JSONObject unmarshalled = (JSONObject) unmarshaller.parse(serverMessage);
+            System.out.println(unmarshalled.get("content"));
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
     }
 
@@ -78,14 +93,12 @@ public class ChatClient {
             while (connectionAlive) {
                 try {
                     String input = reader.readLine();
-                    System.out.println(input);
+                    unmarshallJSON(input);
+                    // System.out.println(input);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         }
     }
-
-
-
 }
