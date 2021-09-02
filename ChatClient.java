@@ -31,15 +31,33 @@ public class ChatClient {
         }
     }
 
-    public static void unmarshallJSON(String serverMessage) {
+    public static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
         /* Unmarshalls messages received from server */
         JSONParser unmarshaller = new JSONParser();
+        return (JSONObject) unmarshaller.parse(serverMessage);
+    }
+
+
+    static void handleJSON(String serverMessage) {
+        /* Method for managing all server IPC. First unmarshalls serverMessage then performs action accordingly */
         try {
-            JSONObject unmarshalled = (JSONObject) unmarshaller.parse(serverMessage);
-            System.out.println(unmarshalled.get("content"));
+            JSONObject unmarshalled = unmarshallJSON(serverMessage);
+            String messageType = unmarshalled.get("type").toString();
+
+            if (messageType.equals("message")) {
+                System.out.println(unmarshalled.get("content"));
+            }
+
+            else if (messageType.equals("newidentity")) {
+                id = unmarshalled.get("identity").toString();
+                System.out.format("Changed identity to : %s\n", id);
+            }
+
+
         } catch (ParseException e) {
-            e.printStackTrace();
+            System.out.println("Could not unmarshall message from server\n");
         }
+
     }
 
 
@@ -93,8 +111,7 @@ public class ChatClient {
             while (connectionAlive) {
                 try {
                     String input = reader.readLine();
-                    unmarshallJSON(input);
-                    // System.out.println(input);
+                    handleJSON(input);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

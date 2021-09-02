@@ -1,7 +1,6 @@
 package com.ChatRoomApplication;
 
 import org.json.simple.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -10,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+
 
 public class ChatServer {
     static final int standardPort = 4444;
@@ -28,16 +28,27 @@ public class ChatServer {
         JSONObject messageJSON = new JSONObject();
         messageJSON.put("type", "message");
         messageJSON.put("content", messageToClient);
-        return messageJSON.toString();
-
+        return messageJSON+"\n";
     }
+
 
     static void newIdentity(ClientConnection connection) {
         /* the server generates a unique id for the client which is guest followed by the smallest integer
         greater than 0 that is currently not in use by any other connected client, he server tells the client its
         id using an newIdentity message */
-
+        JSONObject newIDJSON = new JSONObject();
+        newIDJSON.put("type", "newidentity");
+        newIDJSON.put("former", "");
+        newIDJSON.put("identity", generateName());
+        connection.sendMessage(newIDJSON+"\n");
     }
+
+
+    private static String generateName() {
+        /* Algorithm for generating the basic guest name */
+        return String.format("guest %s", connectionList.size()+1);
+    }
+
 
     static synchronized void addRoom(ChatRoom roomThread) {
         roomList.add(roomThread);
@@ -57,12 +68,11 @@ public class ChatServer {
 
 
     static void broadcastToAll(String message) {
-        /*
-        broadcasts message to all live connections
-        */
+        /* broadcasts message to all live connections */
         System.out.println(message);
         for (ClientConnection connection: connectionList) {
-            connection.sendMessage(message+"\n");
+            String marshalled = marshallToJSON(message);
+            connection.sendMessage(marshalled);
         }
     }
 
@@ -82,6 +92,7 @@ public class ChatServer {
             while (alive) {
                 Socket client = serverSocket.accept();
                 ClientConnection clientConnection = new ClientConnection(client);
+                newIdentity(clientConnection);                                     // assign user their name
                 Thread clientConnectionThread = new Thread(clientConnection);
                 clientConnectionThread.start();
                 addClientConnection(clientConnection);
@@ -121,7 +132,9 @@ public class ChatServer {
             */
             for (ClientConnection connection: roomMembers) {
                 if (connection != null) {
-                    connection.sendMessage(String.format("[%s] : %s\n", roomName, message));
+                    String finalisedString = String.format("[%s] : %s\n", roomName, message);
+                    String marshalled = marshallToJSON(finalisedString);
+                    connection.sendMessage(marshalled);
                 }
             }
         }
@@ -149,18 +162,8 @@ public class ChatServer {
         }
 
 
-        private static String generateName() {
-            /*
-            Generates the default name for client connections when they join server
-            */
-            return String.format("guest%d", connectionList.size() + 1);
-        }
-
-
-        public void sendMessage(String message) {
-            String marshalled = marshallToJSON(message);
-            writer.print(marshalled);
-            writer.print("\n");          // I have no idea why, though removing this line breaks the whole thing //
+        public void sendMessage(String marshalledMessage) {
+            writer.print(marshalledMessage);
             writer.flush();
         }
 
@@ -186,7 +189,7 @@ public class ChatServer {
                         String finalised = String.format("[%s] : %s", guestName, input);
 
                         currentRoom.broadcastToRoom(finalised);
-                        System.out.println(finalised);   // I print to server here to ease debuggin
+                        System.out.println(finalised);            // I print to server here to ease debugging //
                     } else {
                         connectionAlive = false;
                     }
