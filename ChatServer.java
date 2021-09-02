@@ -1,6 +1,9 @@
 package com.ChatRoomApplication;
 
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,6 +44,17 @@ public class ChatServer {
         newIDJSON.put("former", "");
         newIDJSON.put("identity", generateName());
         connection.sendMessage(newIDJSON+"\n");
+    }
+
+
+    private static void roomContents(ClientConnection connection, ChatRoom room) {
+        /* returns room id, room owner and room members to connection */
+        JSONObject roomContents = new JSONObject();
+        roomContents.put("type", "roomcontents");
+        roomContents.put("room id", room.roomName);
+        roomContents.put("identites", room.stringifyRoomMembers());
+        roomContents.put("owner", room.admin);
+        connection.sendMessage(roomContents+"\n");
     }
 
 
@@ -97,9 +111,40 @@ public class ChatServer {
                 clientConnectionThread.start();
                 addClientConnection(clientConnection);
                 mainHall.joinRoom(clientConnection);
+                // roomContents(clientConnection, mainHall);                         // TESTING //
             }
         } catch (IOException e) {
             e.getStackTrace();
+        }
+    }
+
+
+    /* JSON unmarshalling and client request handling */
+
+    public static JSONObject unmarshallJSON(String serverMessage) throws ParseException {
+        /* Unmarshalls messages received from server */
+        JSONParser unmarshaller = new JSONParser();
+        return (JSONObject) unmarshaller.parse(serverMessage);
+    }
+
+
+    public static void handleClientRequest(String clientMessage, ClientConnection clientConnection) {
+        /* Method for managing all C2S Requests. First unmarshalls serverMessage then performs action accordingly */
+        try {
+            JSONObject unmarshalled = unmarshallJSON(clientMessage);
+            String messageType = unmarshalled.get("type").toString();
+
+            if (messageType.equals("message")) {
+                String content = unmarshalled.get("content").toString();
+                String finalised = String.format("[%s] : %s", clientConnection.guestName, content);
+                clientConnection.currentRoom.broadcastToRoom(finalised);
+                System.out.println(finalised);                       // I print to server here to ease debugging //
+            }
+
+
+
+        } catch (ParseException e) {
+            System.out.println("Could not unmarshall message from server\n");
         }
     }
 
@@ -110,13 +155,22 @@ public class ChatServer {
         */
         private final String roomName;
         private final ClientConnection admin;
-        static private final List<ClientConnection> roomMembers = new ArrayList<>();
+        private final List<ClientConnection> roomMembers = new ArrayList<>();
 
 
         public ChatRoom(String roomName, ClientConnection admin) {
             this.roomName = roomName;
             this.admin = admin;
             roomMembers.add(admin);
+        }
+
+        public String stringifyRoomMembers() {
+            /* stringifies the RoomMembers CURRENTLY THROWS SOME BULLSHIT */
+            StringBuilder room = new StringBuilder();
+            for (ClientConnection connection : roomMembers) {
+                room.append(connection.guestName).append(" ");
+            }
+            return room.toString();
         }
 
 
@@ -187,7 +241,6 @@ public class ChatServer {
                     String input = reader.readLine();
                     if (input != null) {
                         String finalised = String.format("[%s] : %s", guestName, input);
-
                         currentRoom.broadcastToRoom(finalised);
                         System.out.println(finalised);            // I print to server here to ease debugging //
                     } else {

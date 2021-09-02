@@ -11,7 +11,7 @@ public class ChatClient {
     private static final int serverPort = 4444;
     private static final String location = "localhost";
     private static final boolean connectionAlive = true;
-    private static String id;
+    private static String id = "";
 
     public static void main(String[] args) {
         establishConnection();
@@ -39,7 +39,7 @@ public class ChatClient {
 
 
     static void handleJSON(String serverMessage) {
-        /* Method for managing all server IPC. First unmarshalls serverMessage then performs action accordingly */
+        /* Method for managing all S2C requests. First unmarshalls serverMessage then performs action accordingly */
         try {
             JSONObject unmarshalled = unmarshallJSON(serverMessage);
             String messageType = unmarshalled.get("type").toString();
@@ -49,10 +49,17 @@ public class ChatClient {
             }
 
             else if (messageType.equals("newidentity")) {
+                assert id.equals(unmarshalled.get("former"));         // assert that this message is intended for us
                 id = unmarshalled.get("identity").toString();
                 System.out.format("Changed identity to : %s\n", id);
             }
 
+            else if (messageType.equals("roomcontents")) {
+                System.out.println("printing room contents: \n");
+                String roomName = unmarshalled.get("roomid").toString();
+                String roomMembers = unmarshalled.get("roomcontents").toString();
+                System.out.format("Current members of %s are : %s\n", roomName, roomMembers);
+            }
 
         } catch (ParseException e) {
             System.out.println("Could not unmarshall message from server\n");
