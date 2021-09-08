@@ -143,15 +143,15 @@ public class ChatServer {
             }
 
         } catch (ParseException e) {
-            System.out.println("Could not unmarshall message from server\n");
+            if (!clientMessage.equals("")) {
+                System.out.format("Could not unmarshall message from client: message %s\n", clientMessage);
+            }
         }
     }
 
 
     static class ChatRoom {
-        /*
-        Implements the different rooms. Within chatRoom subclass, we contain list of all users within room.
-        */
+        /* Implements the different rooms. Within chatRoom subclass, we contain list of all users within room. */
         private final String roomName;
         private final ClientConnection admin;
         private final List<ClientConnection> roomMembers = new ArrayList<>();
@@ -239,9 +239,10 @@ public class ChatServer {
                 try {
                     String input = reader.readLine();
                     if (input != null) {
-                        String finalised = String.format("[%s] : %s", guestName, input);
-                        currentRoom.broadcastToRoom(finalised);
-                        System.out.println(finalised);            // I print to server here to ease debugging //
+                        handleClientRequest(input, this);  // pass to main function for request management
+                        // String finalised = String.format("[%s] : %s", guestName, input);
+                        // currentRoom.broadcastToRoom(finalised);
+                        // System.out.println(finalised);            // I print to server here to ease debugging //
                     } else {
                         connectionAlive = false;
                     }

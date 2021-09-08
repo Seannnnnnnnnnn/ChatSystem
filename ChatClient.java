@@ -109,9 +109,8 @@ public class ChatClient {
             while (connectionAlive) {
                 try {
                     String clientInput = keyboardReader.readLine();
-                    String jsonMarshall = marshallJSON(clientInput);
-                    System.out.format("As JSON %s", jsonMarshall);
-                    writer.println(clientInput);
+                    String jsonMarshall = marshallJSON(clientInput);    // marshall raw input to JSON format
+                    writer.println(jsonMarshall);
                     writer.flush();
                 } catch (IOException e) {
                     e.printStackTrace();
