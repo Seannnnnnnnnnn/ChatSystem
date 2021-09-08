@@ -35,19 +35,47 @@ public class ChatServer {
     }
 
 
-    static void newIdentity(ClientConnection connection) {
+    static void newIdentity(ClientConnection connection, String former, String identity) {
         /* the server generates a unique id for the client which is guest followed by the smallest integer
         greater than 0 that is currently not in use by any other connected client, he server tells the client its
         id using an newIdentity message */
         JSONObject newIDJSON = new JSONObject();
         newIDJSON.put("type", "newidentity");
-        newIDJSON.put("former", "");
-        newIDJSON.put("identity", generateName());
+        newIDJSON.put("former", former);
+        newIDJSON.put("identity", identity);
         connection.sendMessage(newIDJSON+"\n");
     }
 
 
-    private static void roomContents(ClientConnection connection, ChatRoom room) {
+    static boolean validIdentity(String potentialID) {
+        /* function for determining if potentialID is valid and not in use */
+        if (Character.isDigit(potentialID.charAt(0))) { return false; }
+        if (potentialID.length() < 3 | potentialID.length() > 16) { return false; }
+        for (ClientConnection connection: connectionList) {
+            if (connection.guestName.equals(potentialID)) { return false; }
+        }
+        return true;
+    }
+
+
+    static synchronized void newIdentityRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
+        /* function for managing client connection's new identity request; follows the identity change protocol
+        as described within the assignment specification. Method is synchronized so that clients could not potentially
+        change to same id simultaneously */
+        String newIdentity = unmarshalledJSONRequest.get("identity").toString();
+        if (validIdentity(newIdentity)) {
+            for (ClientConnection clientConnection : connectionList) {
+                newIdentity(clientConnection, requester.guestName, newIdentity);
+            }
+            requester.guestName = newIdentity;
+        } else {
+            // in the event that identity does not change, server responds with NewIdentity message to client
+            newIdentity(requester, requester.guestName, requester.guestName);
+        }
+    }
+
+
+    static void roomContents(ClientConnection connection, ChatRoom room) {
         /* returns room id, room owner and room members to connection */
         JSONObject roomContents = new JSONObject();
         roomContents.put("type", "roomcontents");
@@ -103,7 +131,7 @@ public class ChatServer {
             while (alive) {
                 Socket client = serverSocket.accept();
                 ClientConnection clientConnection = new ClientConnection(client);
-                newIdentity(clientConnection);                                     // assign user their name
+                newIdentity(clientConnection, "", generateName());            // assign user their name
                 Thread clientConnectionThread = new Thread(clientConnection);
                 clientConnectionThread.start();
                 addClientConnection(clientConnection);
@@ -136,6 +164,10 @@ public class ChatServer {
                 String finalised = String.format("[%s] : %s", clientConnection.guestName, content);
                 clientConnection.currentRoom.broadcastToRoom(finalised);
                 System.out.println(finalised);                       // I print to server here to ease debugging //
+            }
+
+            else if (messageType.equals("newidentity")) {
+                newIdentityRequest(clientConnection, unmarshalled);
             }
 
             else if (messageType.equals("quit")) {
@@ -201,7 +233,7 @@ public class ChatServer {
         private final Socket socket;
         private final BufferedReader reader;
         private final PrintWriter writer;
-        private final String guestName;
+        private String guestName;
         private final ChatRoom currentRoom;
         private boolean connectionAlive = true;
 

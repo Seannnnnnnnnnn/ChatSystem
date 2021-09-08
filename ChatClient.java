@@ -82,6 +82,17 @@ public class ChatClient {
     }
 
 
+    static void newIdentity(JSONObject unmarshalledResponse){
+        if (id.equals(unmarshalledResponse.get("former"))) {     // if our id equals former, then the newidentity is intended for us
+            id = unmarshalledResponse.get("identity").toString();
+            System.out.format("Changed identity to : %s\n", id);
+        } else {
+            System.out.format("%s changed their identity to %s", unmarshalledResponse.get("former"),
+                              unmarshalledResponse.get("identity"));
+        }
+    }
+
+
     public static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
         /* Unmarshalls messages received from server */
         JSONParser unmarshaller = new JSONParser();
@@ -100,9 +111,7 @@ public class ChatClient {
             }
 
             else if (messageType.equals("newidentity")) {
-                assert id.equals(unmarshalled.get("former"));         // assert that this message is intended for us
-                id = unmarshalled.get("identity").toString();
-                System.out.format("Changed identity to : %s\n", id);
+                newIdentity(unmarshalled);
             }
 
             else if (messageType.equals("roomcontents")) {
@@ -119,10 +128,7 @@ public class ChatClient {
 
 
     private static class Writer extends Thread {
-        /*
-        Thread for handling the writing and flushing of client messages
-        */
-
+        /* Thread for handling the writing and flushing of client messages */
         PrintWriter writer;
         BufferedReader keyboardReader = new BufferedReader(new InputStreamReader(System.in));
 
@@ -151,9 +157,7 @@ public class ChatClient {
 
 
     private static class Listener extends Thread {
-        /*
-        Thread for handling the reading of messages from server
-        */
+        /* Thread for handling the reading of messages from server */
         BufferedReader reader;
 
         public Listener(Socket socket) {
