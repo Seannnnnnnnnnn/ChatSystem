@@ -17,6 +17,7 @@ public class ChatClient {
         establishConnection();
     }
 
+
     public static void establishConnection() {
         try {
             Socket socket = new Socket(location, serverPort);
@@ -30,6 +31,25 @@ public class ChatClient {
             e.getStackTrace();
         }
     }
+
+
+    public static String marshallJSON(String keyboardInput) {
+        /* Marshals user input to appropriate JSON message, then stringifies to be communicated with Server */
+        JSONObject jsonRepresentation = new JSONObject();
+        if (keyboardInput.charAt(0) != '#' ) {
+            jsonRepresentation.put("type", "message");
+            jsonRepresentation.put("content", keyboardInput);
+        }
+        else {
+            String[] split = keyboardInput.split("\\s+");
+            String type = split[0];
+            String remainder = keyboardInput.replaceFirst(type+" ", "");
+            System.out.format("This is your message type: %s, and the remainder of your command: %s\n", type, remainder);
+            System.out.println("Sorry, haven't implemented beyond this :)\n");
+        }
+        return jsonRepresentation+"\n";
+    }
+
 
     public static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
         /* Unmarshalls messages received from server */
@@ -89,6 +109,8 @@ public class ChatClient {
             while (connectionAlive) {
                 try {
                     String clientInput = keyboardReader.readLine();
+                    String jsonMarshall = marshallJSON(clientInput);
+                    System.out.format("As JSON %s", jsonMarshall);
                     writer.println(clientInput);
                     writer.flush();
                 } catch (IOException e) {

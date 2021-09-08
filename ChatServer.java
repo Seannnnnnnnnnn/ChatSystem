@@ -58,7 +58,7 @@ public class ChatServer {
     }
 
 
-    private static String generateName() {
+    private static synchronized String generateName() {
         /* Algorithm for generating the basic guest name */
         return String.format("guest %s", connectionList.size()+1);
     }
@@ -92,14 +92,11 @@ public class ChatServer {
 
 
     static void handleNewConnections() {
-        /*
-        handles all new connections to the server as per the described Protocol.
-        */
+        /* handles all new connections to the server as per the described Protocol. */
         ServerSocket serverSocket;
         ChatRoom mainHall = new ChatRoom("MainHall", null);
         addRoom(mainHall);
         System.out.println("[Server] created Main Hall");
-
         try {
             serverSocket = new ServerSocket(standardPort);
             System.out.format("[Server] hosting on port : %d\n", standardPort);
@@ -141,7 +138,9 @@ public class ChatServer {
                 System.out.println(finalised);                       // I print to server here to ease debugging //
             }
 
-
+            else if (messageType.equals("quit")) {
+                closeClientConnection(clientConnection);
+            }
 
         } catch (ParseException e) {
             System.out.println("Could not unmarshall message from server\n");
