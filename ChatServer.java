@@ -109,6 +109,7 @@ public class ChatServer {
     static void joinRoomRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
         /* function for managing client connections join room request; follows the protocol described on slide 13 */
         String roomid = unmarshalledJSONRequest.get("roomid").toString();
+        System.out.println("here");
         if (validRoom(roomid)) {
             ChatRoom requestedRoom = getRoom(roomid);
             assert requestedRoom != null;
@@ -118,7 +119,7 @@ public class ChatServer {
             //TODO: client’s requested room
             System.out.println("~NOT IMPLEMENTED~");
         } else {
-            String response = "Requested room is invalid or non existant";
+            String response = "Requested room is invalid or non existent";
             String marshalledResponse = marshallToJSON(response);
             requester.sendMessage(marshalledResponse);
             //TODO: If the room did not change then the server will send a RoomChange message

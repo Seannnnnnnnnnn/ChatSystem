@@ -5,7 +5,7 @@ import org.json.simple.JSONObject;
 public class Main {
 
     public static void main(String[] args) {
-        String test1 = "#deheajngf COMP900067";
+        String test1 = "#join COMP900067";
         String output1 = marshallJSON(test1);
         System.out.println(output1);
 
@@ -34,7 +34,7 @@ public class Main {
             }
 
             else if (type.equals("#join")) {
-                jsonRepresentation.put("type", "join");
+                jsonRepresentation.put("type", "roomchange");
                 jsonRepresentation.put("roomid", remainder);
             }
 

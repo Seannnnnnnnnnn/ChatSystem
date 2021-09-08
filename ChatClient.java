@@ -54,7 +54,7 @@ public class ChatClient {
             }
 
             else if (type.equals("#join")) {
-                jsonRepresentation.put("type", "join");
+                jsonRepresentation.put("type", "roomchange");
                 jsonRepresentation.put("roomid", remainder);
             }
 
