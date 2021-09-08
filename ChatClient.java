@@ -12,6 +12,7 @@ public class ChatClient {
     private static final String location = "localhost";
     private static final boolean connectionAlive = true;
     private static String id = "";
+    private static String currentRoom = "MainHall";
 
     public static void main(String[] args) { establishConnection(); }
 
@@ -83,13 +84,23 @@ public class ChatClient {
 
 
     static void newIdentity(JSONObject unmarshalledResponse){
-        if (id.equals(unmarshalledResponse.get("former"))) {     // if our id equals former, then the newidentity is intended for us
+        if (id.equals(unmarshalledResponse.get("former"))) {
+            // if our id equals former, then the newidentity is intended for us
             id = unmarshalledResponse.get("identity").toString();
             System.out.format("Changed identity to : %s\n", id);
         } else {
             System.out.format("%s changed their identity to %s", unmarshalledResponse.get("former"),
                               unmarshalledResponse.get("identity"));
         }
+    }
+
+
+    static void roomChange(JSONObject unmarshalledResponse) {
+        if (!id.equals(unmarshalledResponse.get("identity"))) {
+            System.out.format("%s changed room to %s", unmarshalledResponse.get("former"),
+                              unmarshalledResponse.get("roomid"));
+        }
+        //TODO: all the other parts of the roomChange protocol for S2C response
     }
 
 
@@ -112,6 +123,10 @@ public class ChatClient {
 
             else if (messageType.equals("newidentity")) {
                 newIdentity(unmarshalled);
+            }
+
+            else if (messageType.equals("roomchange")) {
+                roomChange(unmarshalled);
             }
 
             else if (messageType.equals("roomcontents")) {

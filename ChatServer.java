@@ -60,13 +60,14 @@ public class ChatServer {
 
     static synchronized void newIdentityRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
         /* function for managing client connection's new identity request; follows the identity change protocol
-        as described within the assignment specification. Method is synchronized so that clients could not potentially
-        change to same id simultaneously */
+        as described within the assignment specification (Slide 10). Method is synchronized so that clients could
+        not potentially change to same id simultaneously */
         String newIdentity = unmarshalledJSONRequest.get("identity").toString();
         if (validIdentity(newIdentity)) {
             for (ClientConnection clientConnection : connectionList) {
                 newIdentity(clientConnection, requester.guestName, newIdentity);
             }
+            System.out.format("[Server] : %s changed their identity to %s", requester.guestName, newIdentity);
             requester.guestName = newIdentity;
         } else {
             // in the event that identity does not change, server responds with NewIdentity message to client
@@ -74,6 +75,56 @@ public class ChatServer {
         }
     }
 
+
+    private static boolean validRoom(String potentialRoomID) {
+        /* method for determining if potentialRoomID belongs to a current room */
+        for (ChatRoom room : roomList) {
+            if (room.roomName.equals(potentialRoomID)) { return true; }
+        }
+        return false;
+    }
+
+
+    private static ChatRoom getRoom(String roomID) {
+        /* method for getting ChatRoom with roomID. This method is not called unless room with roomID exists, so
+        never returns null */
+        for (ChatRoom room : roomList) {
+            if (room.roomName.equals(roomID)) { return room; }
+        }
+        return null;
+    }
+
+
+    static void roomChange(ClientConnection clientConnection, String former, String roomid) {
+        /* method for creating RoomChange message and sending to client */
+        JSONObject roomChangeJSON = new JSONObject();
+        roomChangeJSON.put("type", "roomchange");
+        roomChangeJSON.put("identity", clientConnection.getId());
+        roomChangeJSON.put("former", former);
+        roomChangeJSON.put("roomid", roomid);
+        clientConnection.sendMessage(roomChangeJSON+"\n");
+    }
+
+
+    static void joinRoomRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
+        /* function for managing client connections join room request; follows the protocol described on slide 13 */
+        String roomid = unmarshalledJSONRequest.get("roomid").toString();
+        if (validRoom(roomid)) {
+            ChatRoom requestedRoom = getRoom(roomid);
+            assert requestedRoom != null;
+            requester.currentRoom = requestedRoom;
+            //TODO: If the room did change, then server will send a RoomChange message to all
+            //TODO: clients currently in the requesting client’s current room and the requesting
+            //TODO: client’s requested room
+            System.out.println("~NOT IMPLEMENTED~");
+        } else {
+            String response = "Requested room is invalid or non existant";
+            String marshalledResponse = marshallToJSON(response);
+            requester.sendMessage(marshalledResponse);
+            //TODO: If the room did not change then the server will send a RoomChange message
+            //TODO: only to the client that requested the room change.
+        }
+    }
 
     static void roomContents(ClientConnection connection, ChatRoom room) {
         /* returns room id, room owner and room members to connection */
@@ -154,7 +205,7 @@ public class ChatServer {
 
 
     public static void handleClientRequest(String clientMessage, ClientConnection clientConnection) {
-        /* Method for managing all C2S Requests. First unmarshalls serverMessage then performs action accordingly */
+        /* Method for managing all C2S Requests. First unmarshalls serverMessage then passes off to appropriate method */
         try {
             JSONObject unmarshalled = unmarshallJSON(clientMessage);
             String messageType = unmarshalled.get("type").toString();
@@ -168,6 +219,10 @@ public class ChatServer {
 
             else if (messageType.equals("newidentity")) {
                 newIdentityRequest(clientConnection, unmarshalled);
+            }
+
+            else if (messageType.equals("roomchange")) {
+                joinRoomRequest(clientConnection, unmarshalled);
             }
 
             else if (messageType.equals("quit")) {
@@ -234,7 +289,7 @@ public class ChatServer {
         private final BufferedReader reader;
         private final PrintWriter writer;
         private String guestName;
-        private final ChatRoom currentRoom;
+        private ChatRoom currentRoom;
         private boolean connectionAlive = true;
 
 
@@ -272,9 +327,6 @@ public class ChatServer {
                     String input = reader.readLine();
                     if (!input.equals("{}")) {
                         handleClientRequest(input, this);  // pass to main function for request management
-                        // String finalised = String.format("[%s] : %s", guestName, input);
-                        // currentRoom.broadcastToRoom(finalised);
-                        // System.out.println(finalised);            // I print to server here to ease debugging //
                     } else {
                         connectionAlive = false;
                     }
