@@ -1,23 +1,14 @@
 package com.ChatRoomApplication;
 
-import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-
-import java.util.ArrayList;
 
 public class Main {
 
     public static void main(String[] args) {
-        String test1 = "#changeid hello cunt";
+        String test1 = "#deheajngf COMP900067";
         String output1 = marshallJSON(test1);
-
-        String test2 = "hello world";
-        String output2 = marshallJSON(test2);
-
         System.out.println(output1);
-        System.out.println(output2);
+
     }
 
 
@@ -31,9 +22,42 @@ public class Main {
         else {
             String[] split = keyboardInput.split("\\s+");
             String type = split[0];
-            String remainder = keyboardInput.replaceFirst(type+" ", "");
-            System.out.format("This is your message type: %s, and the remainder of your command: %s\n", type, remainder);
-            System.out.println("Sorry, haven't implemented beyond this :)\n");
+            String remainder = keyboardInput.replaceFirst(type, "").trim();
+
+            if (type.equals("#quit")) {
+                jsonRepresentation.put("type","quit");
+            }
+
+            else if (type.equals("#newidentity")) {
+                jsonRepresentation.put("type","newidentity");
+                jsonRepresentation.put("identity", remainder);
+            }
+
+            else if (type.equals("#join")) {
+                jsonRepresentation.put("type", "join");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#who")) {
+                jsonRepresentation.put("type", "who");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#creatroom")) {
+                jsonRepresentation.put("type", "createroom");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#delete")) {
+                jsonRepresentation.put("type", "delete");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else {
+                System.out.format("It appears you have tried to enter a server request.\nUnfortunately, %s is not a " +
+                                  "recognised request format. This will be transmitted as a standard message instead.\n",
+                                  type);
+            }
         }
         return jsonRepresentation+"\n";
     }

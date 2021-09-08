@@ -238,7 +238,7 @@ public class ChatServer {
             while (connectionAlive) {
                 try {
                     String input = reader.readLine();
-                    if (input != null) {
+                    if (!input.equals("{}")) {
                         handleClientRequest(input, this);  // pass to main function for request management
                         // String finalised = String.format("[%s] : %s", guestName, input);
                         // currentRoom.broadcastToRoom(finalised);
@@ -246,8 +246,9 @@ public class ChatServer {
                     } else {
                         connectionAlive = false;
                     }
-                } catch (IOException e) {
+                } catch (IOException | NullPointerException e) {
                     e.printStackTrace();
+                    break;
                 }
             }
             close();

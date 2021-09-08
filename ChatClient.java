@@ -13,9 +13,7 @@ public class ChatClient {
     private static final boolean connectionAlive = true;
     private static String id = "";
 
-    public static void main(String[] args) {
-        establishConnection();
-    }
+    public static void main(String[] args) { establishConnection(); }
 
 
     public static void establishConnection() {
@@ -43,9 +41,42 @@ public class ChatClient {
         else {
             String[] split = keyboardInput.split("\\s+");
             String type = split[0];
-            String remainder = keyboardInput.replaceFirst(type+" ", "");
-            System.out.format("This is your message type: %s, and the remainder of your command: %s\n", type, remainder);
-            System.out.println("Sorry, haven't implemented beyond this :)\n");
+            String remainder = keyboardInput.replaceFirst(type, "").trim();
+
+            if (type.equals("#quit")) {
+                jsonRepresentation.put("type","quit");
+            }
+
+            else if (type.equals("#newidentity")) {
+                jsonRepresentation.put("type","newidentity");
+                jsonRepresentation.put("identity", remainder);
+            }
+
+            else if (type.equals("#join")) {
+                jsonRepresentation.put("type", "join");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#who")) {
+                jsonRepresentation.put("type", "who");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#creatroom")) {
+                jsonRepresentation.put("type", "createroom");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#delete")) {
+                jsonRepresentation.put("type", "delete");
+                jsonRepresentation.put("roomid", remainder);
+            }
+
+            else {
+                System.out.format("It appears you have tried to enter a server request.\nUnfortunately, %s is not a " +
+                                  "recognised request format. This will be transmitted as a standard message instead.\n"
+                                  ,type);
+            }
         }
         return jsonRepresentation+"\n";
     }
@@ -84,7 +115,6 @@ public class ChatClient {
         } catch (ParseException e) {
             System.out.println("Could not unmarshall message from server\n");
         }
-
     }
 
 
