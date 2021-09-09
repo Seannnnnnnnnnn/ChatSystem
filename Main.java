@@ -5,7 +5,7 @@ import org.json.simple.JSONObject;
 public class Main {
 
     public static void main(String[] args) {
-        String test1 = "#createroom nigger";
+        String test1 = "#createroom gdsgsdg";
         String output1 = marshallJSON(test1);
         System.out.println(output1);
 
