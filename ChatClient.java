@@ -14,6 +14,10 @@ public class ChatClient {
     private static final boolean connectionAlive = true;
     private static String id = "";
     private static String currentRoom = "MainHall";
+    private static String newRoomName = null;    // when client makes #createroom request, they receive a roomList response
+                                             // with the new room if successful. This variable is overridden at the
+                                             // #createroom request, to verify if the room was successfully created.
+                                             // This is all managed within the roomList response handler method.
 
     public static void main(String[] args) { establishConnection(); }
 
@@ -65,6 +69,7 @@ public class ChatClient {
             }
 
             else if (type.equals("#createroom")) {
+                newRoomName = remainder; // we set the new room name here. Then verified as successful in handling roomList
                 jsonRepresentation.put("type", "createroom");
                 jsonRepresentation.put("roomid", remainder);
             }
@@ -111,7 +116,17 @@ public class ChatClient {
 
     static void roomList(JSONObject unmarshalledResponse) {
         String currentRooms = unmarshalledResponse.get("rooms").toString();
-        System.out.format("current rooms: %s\n", currentRooms);
+        if (newRoomName != null && currentRooms.contains(newRoomName)) {  // if newRoomName is not null, then roomList message was received as part of the #creatroom protocol
+            System.out.format("Room %s created\n", newRoomName);
+            newRoomName = null;
+
+        } else if (newRoomName != null && !currentRooms.contains(newRoomName)){
+            System.out.format("Room %s is invalid, or already in use\n", newRoomName);
+            newRoomName = null;
+
+        } else {
+            System.out.format("current rooms: %s\n", currentRooms);
+        }
     }
 
 

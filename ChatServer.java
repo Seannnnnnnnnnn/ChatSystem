@@ -142,15 +142,15 @@ public class ChatServer {
 
 
     static synchronized void createRoomRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
-        /* method for handling creation of new room requests */
+        /* method for handling creation of new room requests if room is created, Server replies to requester
+        with RoomList response type, showing the newly created room.  */
         String roomid = unmarshalledJSONRequest.get("roomid").toString();
         if (validNewRoomID(roomid)) {
-            //TODO: if room is created, Server replies to requester with RoomList.
-        } else {
-            String response = String.format("%s is invalid or already in use", roomid);
-            String marshalledResponse = marshallToJSON(response);
-            requester.sendMessage(marshalledResponse);
+            ChatRoom newRoom = new ChatRoom(roomid, requester);
+            roomList.add(newRoom);
+            System.out.format("[Server]: %s created room: %s\n", requester.guestName, roomid);
         }
+        roomListRequest(requester);
     }
 
 
@@ -199,7 +199,7 @@ public class ChatServer {
 
 
     private static boolean isAlphaNumeric(String s) {
-        /* taken from: www.techiedelight.com/check-string-contains-alphanumeric-characters-java/ */
+        /* shamelessly taken from: www.techiedelight.com/check-string-contains-alphanumeric-characters-java/ */
         return s != null && s.matches("^[a-zA-Z0-9]*$");
     }
 
