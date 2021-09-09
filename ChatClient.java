@@ -6,6 +6,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class ChatClient {
     private static final int serverPort = 4444;
@@ -35,7 +36,7 @@ public class ChatClient {
     public static String marshallJSON(String keyboardInput) {
         /* Marshals user input to appropriate JSON message, then stringifies to be communicated with Server */
         JSONObject jsonRepresentation = new JSONObject();
-        if (keyboardInput.charAt(0) != '#' ) {
+        if (keyboardInput.charAt(0) != '#') {
             jsonRepresentation.put("type", "message");
             jsonRepresentation.put("content", keyboardInput);
         }
@@ -63,9 +64,13 @@ public class ChatClient {
                 jsonRepresentation.put("roomid", remainder);
             }
 
-            else if (type.equals("#creatroom")) {
+            else if (type.equals("#createroom")) {
                 jsonRepresentation.put("type", "createroom");
                 jsonRepresentation.put("roomid", remainder);
+            }
+
+            else if (type.equals("#list")) {
+                jsonRepresentation.put("type", "list");
             }
 
             else if (type.equals("#delete")) {
@@ -104,7 +109,20 @@ public class ChatClient {
     }
 
 
-    public static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
+    static void roomList(JSONObject unmarshalledResponse) {
+        String currentRooms = unmarshalledResponse.get("rooms").toString();
+        System.out.format("current rooms: %s\n", currentRooms);
+    }
+
+
+    static void roomContents(JSONObject unmarshalledResponse) {
+        String roomid = unmarshalledResponse.get("roomid").toString();
+        String identities = unmarshalledResponse.get("identities").toString();
+        System.out.format("[%s] : %s\n", roomid, identities);
+    }
+
+
+    private static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
         /* Unmarshalls messages received from server */
         JSONParser unmarshaller = new JSONParser();
         return (JSONObject) unmarshaller.parse(serverMessage);
@@ -127,6 +145,14 @@ public class ChatClient {
 
             else if (messageType.equals("roomchange")) {
                 roomChange(unmarshalled);
+            }
+
+            else if (messageType.equals("roomcontents")) {
+                roomContents(unmarshalled);
+            }
+
+            else if (messageType.equals("roomlist")) {
+                roomList(unmarshalled);
             }
 
             else if (messageType.equals("roomcontents")) {

@@ -49,6 +49,7 @@ public class ChatServer {
 
     static boolean validIdentity(String potentialID) {
         /* function for determining if potentialID is valid and not in use */
+        if (!isAlphaNumeric(potentialID)) { return false; }
         if (Character.isDigit(potentialID.charAt(0))) { return false; }
         if (potentialID.length() < 3 | potentialID.length() > 16) { return false; }
         for (ClientConnection connection: connectionList) {
@@ -76,7 +77,7 @@ public class ChatServer {
     }
 
 
-    private static boolean validRoom(String potentialRoomID) {
+    private static boolean roomExists(String potentialRoomID) {
         /* method for determining if potentialRoomID belongs to a current room */
         for (ChatRoom room : roomList) {
             if (room.roomName.equals(potentialRoomID)) { return true; }
@@ -109,8 +110,7 @@ public class ChatServer {
     static void joinRoomRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
         /* function for managing client connections join room request; follows the protocol described on slide 13 */
         String roomid = unmarshalledJSONRequest.get("roomid").toString();
-        System.out.println("here");
-        if (validRoom(roomid)) {
+        if (roomExists(roomid)) {
             ChatRoom requestedRoom = getRoom(roomid);
             assert requestedRoom != null;
             requester.currentRoom = requestedRoom;
@@ -127,14 +127,80 @@ public class ChatServer {
         }
     }
 
-    static void roomContents(ClientConnection connection, ChatRoom room) {
+
+    static boolean validNewRoomID(String potentialRoomID) {
+        /* function for determining if potential room ID is not in use, starts with non-digit and
+        between 3 and 32 characters. potential room ID must also no currently be in use */
+        if (!isAlphaNumeric(potentialRoomID)) { return false; }
+        if (Character.isDigit(potentialRoomID.charAt(0))) { return false; }
+        if (potentialRoomID.length() < 3 | potentialRoomID.length() > 32) { return false; }
+        for (ChatRoom chatRoom : roomList) {
+            if (chatRoom.roomName.equals(potentialRoomID)) { return false; }
+        }
+        return true;
+    }
+
+
+    static synchronized void createRoomRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
+        /* method for handling creation of new room requests */
+        String roomid = unmarshalledJSONRequest.get("roomid").toString();
+        if (validNewRoomID(roomid)) {
+            //TODO: if room is created, Server replies to requester with RoomList.
+        } else {
+            String response = String.format("%s is invalid or already in use", roomid);
+            String marshalledResponse = marshallToJSON(response);
+            requester.sendMessage(marshalledResponse);
+        }
+    }
+
+
+    static void roomContents(ClientConnection connection, String roomID) {
         /* returns room id, room owner and room members to connection */
         JSONObject roomContents = new JSONObject();
-        roomContents.put("type", "roomcontents");
-        roomContents.put("room id", room.roomName);
-        roomContents.put("identites", room.stringifyRoomMembers());
-        roomContents.put("owner", room.admin);
-        connection.sendMessage(roomContents+"\n");
+        if (roomExists(roomID)) {
+            //TODO: Fix this branch of the code. Not working for some reason with MainHall
+            System.out.println("for some reason I'm here lol");
+            ChatRoom room = getRoom(roomID);
+            roomContents.put("type", "roomcontents");
+            roomContents.put("room id", roomID);
+            roomContents.put("identites", room.stringifyRoomMembers());    // can't raise NullPointerException, as we always return at least '[]'
+            roomContents.put("owner", room.admin);
+            connection.sendMessage(roomContents + "\n");
+        }
+        else {
+            String response = String.format("%s is not a valid room.\n", roomID);
+            String marshalledResponse = marshallToJSON(response);
+            connection.sendMessage(marshalledResponse);
+        }
+    }
+
+
+    static ArrayList<String> getRooms() {
+        /* returns an ArrayList containing room ids and room counts */
+        ArrayList<String> rooms = new ArrayList<>();
+        for (ChatRoom chatRoom : roomList) {
+            JSONObject jsonRepresentation = new JSONObject();
+            jsonRepresentation.put("roomid", chatRoom.roomName);
+            jsonRepresentation.put("count", chatRoom.getRoomSize());
+            rooms.add(jsonRepresentation.toString());
+        }
+        return rooms;
+    }
+
+
+    static void roomListRequest(ClientConnection requester) {
+        /* The RoomList message lists all room ids and the count of identities in each room */
+        JSONObject roomList = new JSONObject();
+        roomList.put("type", "roomlist");
+        ArrayList<String> roomData = getRooms();
+        roomList.put("rooms", roomData);
+        requester.sendMessage(roomList+"\n");
+    }
+
+
+    private static boolean isAlphaNumeric(String s) {
+        /* taken from: www.techiedelight.com/check-string-contains-alphanumeric-characters-java/ */
+        return s != null && s.matches("^[a-zA-Z0-9]*$");
     }
 
 
@@ -150,7 +216,10 @@ public class ChatServer {
 
 
     static synchronized void closeClientConnection(ClientConnection connection) {
+        /* Manages the closing of a client connection. Broadcasts to all users that client has left. Reduces room
+        count of users current room  */
         broadcastToAll(String.format("[Server] : %s has left the chat", connection.guestName));
+        connection.currentRoom.roomMembers.remove(connection);
         connectionList.remove(connection);
     }
 
@@ -226,6 +295,18 @@ public class ChatServer {
                 joinRoomRequest(clientConnection, unmarshalled);
             }
 
+            else if (messageType.equals("who")) {
+                roomContents(clientConnection, unmarshalled.get("roomid").toString());
+            }
+
+            else if (messageType.equals("createroom")) {
+                createRoomRequest(clientConnection, unmarshalled);
+            }
+
+            else if (messageType.equals("list")) {
+                roomListRequest(clientConnection);
+            }
+
             else if (messageType.equals("quit")) {
                 closeClientConnection(clientConnection);
             }
@@ -251,8 +332,15 @@ public class ChatServer {
             roomMembers.add(admin);
         }
 
+
+        public int getRoomSize() {
+            return roomMembers.size()-1;
+        }
+
+
         public String stringifyRoomMembers() {
             /* stringifies the RoomMembers CURRENTLY THROWS SOME BULLSHIT */
+            if (roomMembers.size() == 0) { return "[]"; }
             StringBuilder room = new StringBuilder();
             for (ClientConnection connection : roomMembers) {
                 room.append(connection.guestName).append(" ");
