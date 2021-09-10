@@ -6,7 +6,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.ArrayList;
+
 
 public class ChatClient {
     private static final int serverPort = 4444;
@@ -87,6 +87,8 @@ public class ChatClient {
                 System.out.format("It appears you have tried to enter a server request.\nUnfortunately, %s is not a " +
                                   "recognised request format. This will be transmitted as a standard message instead.\n"
                                   ,type);
+                jsonRepresentation.put("type", "message");
+                jsonRepresentation.put("content", keyboardInput);
             }
         }
         return jsonRepresentation+"\n";
@@ -107,10 +109,12 @@ public class ChatClient {
 
     static void roomChange(JSONObject unmarshalledResponse) {
         if (!id.equals(unmarshalledResponse.get("identity"))) {
-            System.out.format("%s changed room to %s", unmarshalledResponse.get("former"),
+            System.out.format("%s changed room to %s\n", unmarshalledResponse.get("identity"),
                               unmarshalledResponse.get("roomid"));
         }
-        //TODO: all the other parts of the roomChange protocol for S2C response
+        else {
+            System.out.format("moved to %s\n", unmarshalledResponse.get("roomid"));
+        }
     }
 
 
@@ -125,8 +129,16 @@ public class ChatClient {
             newRoomName = null;
 
         } else {
-            System.out.format("current rooms: %s\n", unmarshalledResponse.get("rooms"));
+            System.out.println("current rooms: ");
+            System.out.println(unmarshalledResponse.get("rooms"));
+            System.out.println(getRoomsFromResponse(unmarshalledResponse));
         }
+    }
+
+
+    static String getRoomsFromResponse(JSONObject unmarshalledArray) {
+        /* Method to stringify the room contents from the server response */
+        return "";
     }
 
 

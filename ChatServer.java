@@ -113,17 +113,18 @@ public class ChatServer {
         if (roomExists(roomid)) {
             ChatRoom requestedRoom = getRoom(roomid);
             assert requestedRoom != null;
-            requester.currentRoom = requestedRoom;
-            //TODO: If the room did change, then server will send a RoomChange message to all
-            //TODO: clients currently in the requesting client’s current room and the requesting
-            //TODO: client’s requested room
-            System.out.println("~NOT IMPLEMENTED~");
+            ChatRoom previousRoom = requester.currentRoom;
+            requestedRoom.joinRoom(requester);
+            System.out.format("[Server] : %s moved to %s", requester.guestName, requestedRoom.roomName);
+            roomChange(requester, previousRoom.roomName, requestedRoom.roomName);
+            /* TODO: If the room did change, then server will send a RoomChange message to all
+            clients currently in the requesting client’s current room and the requesting
+             client’s requested room
+            */
         } else {
             String response = "Requested room is invalid or non existent";
             String marshalledResponse = marshallToJSON(response);
             requester.sendMessage(marshalledResponse);
-            //TODO: If the room did not change then the server will send a RoomChange message
-            //TODO: only to the client that requested the room change.
         }
     }
 
@@ -162,7 +163,7 @@ public class ChatServer {
             ChatRoom room = getRoom(roomID);
             roomContents.put("type", "roomcontents");
             roomContents.put("room id", roomID);
-            roomContents.put("identites", room.stringifyRoomMembers());    // can't raise NullPointerException, as we always return at least '[]'
+            roomContents.put("identites", room.stringifyRoomMembers()); // can't raise NullPointerException, as we always return at least '[]'
             roomContents.put("owner", room.admin);
             connection.sendMessage(roomContents + "\n");
         }
@@ -193,7 +194,6 @@ public class ChatServer {
         String roomData = getRooms();
         roomList.put("type", "roomlist");
         roomList.put("rooms", roomData);
-        System.out.format("[Server] : transmitting %s", roomList.get("rooms"));
         requester.sendMessage(roomList+"\n");
     }
 
@@ -329,12 +329,11 @@ public class ChatServer {
         public ChatRoom(String roomName, ClientConnection admin) {
             this.roomName = roomName;
             this.admin = admin;
-            roomMembers.add(admin);
         }
 
 
         public int getRoomSize() {
-            return roomMembers.size()-1;
+            return roomMembers.size();
         }
 
 
@@ -350,10 +349,16 @@ public class ChatServer {
 
 
         public void joinRoom(ClientConnection connection) {
-            broadcastToAll(String.format("[Server] : %s has joined %s", connection.guestName, roomName));
+            // broadcastToAll(String.format("[Server] : %s has joined %s", connection.guestName, roomName));
+            ChatRoom formerRoom = connection.currentRoom;
+            formerRoom.leaveRoom(connection);
+            connection.currentRoom = this;
             roomMembers.add(connection);
         }
 
+        public void leaveRoom(ClientConnection connection) {
+            roomMembers.remove(connection);
+        }
 
         private void broadcastToRoom(String message) {
             /*
@@ -371,9 +376,7 @@ public class ChatServer {
 
 
     static class ClientConnection extends Thread {
-        /*
-        Implements the separate client connections
-        */
+        /* Implements the separate client connections */
         private final Socket socket;
         private final BufferedReader reader;
         private final PrintWriter writer;
@@ -428,3 +431,7 @@ public class ChatServer {
         }
     }
 }
+
+
+
+
