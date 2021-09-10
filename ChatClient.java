@@ -96,12 +96,13 @@ public class ChatClient {
 
 
     static void newIdentity(JSONObject unmarshalledResponse){
-        if (id.equals(unmarshalledResponse.get("former"))) {
-            // if our id equals former, then the newidentity is intended for us
+        if (id.equals(unmarshalledResponse.get("former")) && !id.equals(unmarshalledResponse.get("identity"))) {
             id = unmarshalledResponse.get("identity").toString();
             System.out.format("Changed identity to : %s\n", id);
+        } else if (id.equals(unmarshalledResponse.get("former")) && id.equals(unmarshalledResponse.get("identity"))) {
+            System.out.println("identity invalid or already in use\n");
         } else {
-            System.out.format("%s changed their identity to %s", unmarshalledResponse.get("former"),
+            System.out.format("%s changed their identity to %s\n", unmarshalledResponse.get("former"),
                               unmarshalledResponse.get("identity"));
         }
     }

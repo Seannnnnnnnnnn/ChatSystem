@@ -26,6 +26,10 @@ public class ChatServer {
     }
 
 
+    /********************************************************************************************
+    * helper functions - marshalling / unmarshalling, validation checking ect
+    ****************************************************************************************** */
+
     static String marshallToJSON(String messageToClient) {
         /* Method for marshalling messages to client */
         JSONObject messageJSON = new JSONObject();
@@ -35,15 +39,10 @@ public class ChatServer {
     }
 
 
-    static void newIdentity(ClientConnection connection, String former, String identity) {
-        /* the server generates a unique id for the client which is guest followed by the smallest integer
-        greater than 0 that is currently not in use by any other connected client, the server tells the client its
-        id using an newIdentity message */
-        JSONObject newIDJSON = new JSONObject();
-        newIDJSON.put("type", "newidentity");
-        newIDJSON.put("former", former);
-        newIDJSON.put("identity", identity);
-        connection.sendMessage(newIDJSON+"\n");
+    public static JSONObject unmarshallJSON(String serverMessage) throws ParseException {
+        /* Unmarshalls messages received from server */
+        JSONParser unmarshaller = new JSONParser();
+        return (JSONObject) unmarshaller.parse(serverMessage);
     }
 
 
@@ -59,21 +58,16 @@ public class ChatServer {
     }
 
 
-    static synchronized void newIdentityRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
-        /* function for managing client connection's new identity request; follows the identity change protocol
-        as described within the assignment specification (Slide 10). Method is synchronized so that clients could
-        not potentially change to same id simultaneously */
-        String newIdentity = unmarshalledJSONRequest.get("identity").toString();
-        if (validIdentity(newIdentity)) {
-            for (ClientConnection clientConnection : connectionList) {
-                newIdentity(clientConnection, requester.guestName, newIdentity);
-            }
-            System.out.format("[Server] : %s changed their identity to %s", requester.guestName, newIdentity);
-            requester.guestName = newIdentity;
-        } else {
-            // in the event that identity does not change, server responds with NewIdentity message to client
-            newIdentity(requester, requester.guestName, requester.guestName);
+    static boolean validNewRoomID(String potentialRoomID) {
+        /* function for determining if potential room ID is not in use, starts with non-digit and
+        between 3 and 32 characters. potential room ID must also no currently be in use */
+        if (!isAlphaNumeric(potentialRoomID)) { return false; }
+        if (Character.isDigit(potentialRoomID.charAt(0))) { return false; }
+        if (potentialRoomID.length() < 3 | potentialRoomID.length() > 32) { return false; }
+        for (ChatRoom chatRoom : roomList) {
+            if (chatRoom.roomName.equals(potentialRoomID)) { return false; }
         }
+        return true;
     }
 
 
@@ -93,6 +87,71 @@ public class ChatServer {
             if (room.roomName.equals(roomID)) { return room; }
         }
         return null;
+    }
+
+
+    static String getRooms() {
+        /* returns an ArrayList containing room ids and room counts */
+        ArrayList<String> rooms = new ArrayList<>();
+        for (ChatRoom chatRoom : roomList) {
+            JSONObject jsonRepresentation = new JSONObject();
+            jsonRepresentation.put("roomid", chatRoom.roomName);
+            jsonRepresentation.put("count", chatRoom.getRoomSize());
+            rooms.add(jsonRepresentation.toString());
+        }
+        return rooms + "\n";
+    }
+
+
+    private static boolean isAlphaNumeric(String s) {
+        /* shamelessly taken from: www.techiedelight.com/check-string-contains-alphanumeric-characters-java/ */
+        return s != null && s.matches("^[a-zA-Z0-9]*$");
+    }
+
+
+    private static synchronized String generateName() {
+        /* Algorithm for generating the basic guest name */
+        return String.format("guest %s", connectionList.size()+1);
+    }
+
+
+    static synchronized void addRoom(ChatRoom roomThread) {
+        roomList.add(roomThread);
+    }
+
+
+    /*********************************************************************************************
+     *  S2C Responses
+     ****************************************************************************************** */
+
+
+    static void newIdentity(ClientConnection connection, String former, String identity) {
+        /* the server generates a unique id for the client which is guest followed by the smallest integer
+        greater than 0 that is currently not in use by any other connected client, the server tells the client its
+        id using an newIdentity message */
+        JSONObject newIDJSON = new JSONObject();
+        newIDJSON.put("type", "newidentity");
+        newIDJSON.put("former", former);
+        newIDJSON.put("identity", identity);
+        connection.sendMessage(newIDJSON+"\n");
+    }
+
+
+    static synchronized void newIdentityRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
+        /* function for managing client connection's new identity request; follows the identity change protocol
+        as described within the assignment specification (Slide 10). Method is synchronized so that clients could
+        not potentially change to same id simultaneously */
+        String newIdentity = unmarshalledJSONRequest.get("identity").toString();
+        if (validIdentity(newIdentity)) {
+            for (ClientConnection clientConnection : connectionList) {
+                newIdentity(clientConnection, requester.guestName, newIdentity);
+            }
+            System.out.format("[Server] : %s changed their identity to %s", requester.guestName, newIdentity);
+            requester.guestName = newIdentity;
+        } else {
+            // in the event that identity does not change, server responds with NewIdentity message to client
+            newIdentity(requester, requester.guestName, requester.guestName);
+        }
     }
 
 
@@ -129,19 +188,6 @@ public class ChatServer {
     }
 
 
-    static boolean validNewRoomID(String potentialRoomID) {
-        /* function for determining if potential room ID is not in use, starts with non-digit and
-        between 3 and 32 characters. potential room ID must also no currently be in use */
-        if (!isAlphaNumeric(potentialRoomID)) { return false; }
-        if (Character.isDigit(potentialRoomID.charAt(0))) { return false; }
-        if (potentialRoomID.length() < 3 | potentialRoomID.length() > 32) { return false; }
-        for (ChatRoom chatRoom : roomList) {
-            if (chatRoom.roomName.equals(potentialRoomID)) { return false; }
-        }
-        return true;
-    }
-
-
     static synchronized void createRoomRequest(ClientConnection requester, JSONObject unmarshalledJSONRequest) {
         /* method for handling creation of new room requests if room is created, Server replies to requester
         with RoomList response type, showing the newly created room.  */
@@ -175,19 +221,6 @@ public class ChatServer {
     }
 
 
-    static String getRooms() {
-        /* returns an ArrayList containing room ids and room counts */
-        ArrayList<String> rooms = new ArrayList<>();
-        for (ChatRoom chatRoom : roomList) {
-            JSONObject jsonRepresentation = new JSONObject();
-            jsonRepresentation.put("roomid", chatRoom.roomName);
-            jsonRepresentation.put("count", chatRoom.getRoomSize());
-            rooms.add(jsonRepresentation.toString());
-        }
-        return rooms + "\n";
-    }
-
-
     static void roomListRequest(ClientConnection requester) {
         /* The RoomList message lists all room ids and the count of identities in each room */
         JSONObject roomList = new JSONObject();
@@ -198,21 +231,9 @@ public class ChatServer {
     }
 
 
-    private static boolean isAlphaNumeric(String s) {
-        /* shamelessly taken from: www.techiedelight.com/check-string-contains-alphanumeric-characters-java/ */
-        return s != null && s.matches("^[a-zA-Z0-9]*$");
-    }
-
-
-    private static synchronized String generateName() {
-        /* Algorithm for generating the basic guest name */
-        return String.format("guest %s", connectionList.size()+1);
-    }
-
-
-    static synchronized void addRoom(ChatRoom roomThread) {
-        roomList.add(roomThread);
-    }
+    /*******************************************************************************************
+     *  Server management and console logging
+     ****************************************************************************************** */
 
 
     static synchronized void closeClientConnection(ClientConnection connection) {
@@ -265,15 +286,6 @@ public class ChatServer {
     }
 
 
-    /* JSON unmarshalling and client request handling */
-
-    public static JSONObject unmarshallJSON(String serverMessage) throws ParseException {
-        /* Unmarshalls messages received from server */
-        JSONParser unmarshaller = new JSONParser();
-        return (JSONObject) unmarshaller.parse(serverMessage);
-    }
-
-
     public static void handleClientRequest(String clientMessage, ClientConnection clientConnection) {
         /* Method for managing all C2S Requests. First unmarshalls serverMessage then passes off to appropriate method */
         try {
@@ -317,6 +329,11 @@ public class ChatServer {
             }
         }
     }
+
+
+    /*******************************************************************************************
+     *  ChatRoom subclass & methods
+     ****************************************************************************************** */
 
 
     static class ChatRoom {
@@ -375,6 +392,11 @@ public class ChatServer {
     }
 
 
+    /*******************************************************************************************
+     *  ClientConnection subclass and individual connection management
+     ****************************************************************************************** */
+
+
     static class ClientConnection extends Thread {
         /* Implements the separate client connections */
         private final Socket socket;
@@ -431,7 +453,3 @@ public class ChatServer {
         }
     }
 }
-
-
-
-
