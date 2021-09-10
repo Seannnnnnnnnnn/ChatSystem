@@ -37,7 +37,7 @@ public class ChatServer {
 
     static void newIdentity(ClientConnection connection, String former, String identity) {
         /* the server generates a unique id for the client which is guest followed by the smallest integer
-        greater than 0 that is currently not in use by any other connected client, he server tells the client its
+        greater than 0 that is currently not in use by any other connected client, the server tells the client its
         id using an newIdentity message */
         JSONObject newIDJSON = new JSONObject();
         newIDJSON.put("type", "newidentity");
@@ -159,7 +159,6 @@ public class ChatServer {
         JSONObject roomContents = new JSONObject();
         if (roomExists(roomID)) {
             //TODO: Fix this branch of the code. Not working for some reason with MainHall
-            System.out.println("for some reason I'm here lol");
             ChatRoom room = getRoom(roomID);
             roomContents.put("type", "roomcontents");
             roomContents.put("room id", roomID);
@@ -175,7 +174,7 @@ public class ChatServer {
     }
 
 
-    static ArrayList<String> getRooms() {
+    static String getRooms() {
         /* returns an ArrayList containing room ids and room counts */
         ArrayList<String> rooms = new ArrayList<>();
         for (ChatRoom chatRoom : roomList) {
@@ -184,16 +183,17 @@ public class ChatServer {
             jsonRepresentation.put("count", chatRoom.getRoomSize());
             rooms.add(jsonRepresentation.toString());
         }
-        return rooms;
+        return rooms + "\n";
     }
 
 
     static void roomListRequest(ClientConnection requester) {
         /* The RoomList message lists all room ids and the count of identities in each room */
         JSONObject roomList = new JSONObject();
+        String roomData = getRooms();
         roomList.put("type", "roomlist");
-        ArrayList<String> roomData = getRooms();
         roomList.put("rooms", roomData);
+        System.out.format("[Server] : transmitting %s", roomList.get("rooms"));
         requester.sendMessage(roomList+"\n");
     }
 
