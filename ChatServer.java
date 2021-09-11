@@ -197,9 +197,21 @@ public class ChatServer {
             requestedRoom.joinRoom(requester);
             System.out.format("[Server] : %s moved to %s\n", requester.guestName, requestedRoom.roomName);
             roomChange(requester, previousRoom.roomName, requestedRoom.roomName);
-            /* TODO: If the room did change, then server will send a RoomChange message to all
+
+            /* If the room did change, then server will send a RoomChange message to all
             clients currently in the requesting client’s current room and the requesting
             client’s requested room */
+            for (ClientConnection connection : previousRoom.roomMembers) {
+                if (!connection.equals(requester)) {
+                    roomChange(connection, previousRoom.roomName, requestedRoom.roomName);
+                }
+            }
+            for (ClientConnection connection : requestedRoom.roomMembers) {
+                if (!connection.equals(requester)) {
+                    roomChange(connection, previousRoom.roomName, requestedRoom.roomName);
+                }
+            }
+
         } else {
             String response = "Requested room is invalid or non existent";
             String marshalledResponse = marshallToJSON(response);
@@ -264,7 +276,7 @@ public class ChatServer {
             a list whilst iterating over it. We create a special method for moving connections to "MainHall"
             in the event of a roomDelete. */
             for (ClientConnection connection : targetRoom.roomMembers) {
-                String notification = String.format("%s has been deleted. Moving to MainHall", roomID);
+                String notification = String.format("[Server] : %s has been deleted. Moving to MainHall", roomID);
                 String marshalledResponse = marshallToJSON(notification);
                 requester.sendMessage(marshalledResponse);
                 moveToMainHall(connection);
