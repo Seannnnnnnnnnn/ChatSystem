@@ -155,6 +155,20 @@ public class ChatServer {
     }
 
 
+    static synchronized void checkAndDeleteRooms() {
+        /* If a room (that is not MainHall) has 0 occupants and no admin, then it is deleted */
+        ArrayList<ChatRoom> roomsToDelete = new ArrayList<>();
+        for (ChatRoom chatRoom : roomList) {
+            if (!chatRoom.roomName.equals("MainHall") && chatRoom.getRoomSize()==0 && chatRoom.admin == null) {
+                roomsToDelete.add(chatRoom);
+            }
+        }
+        for (ChatRoom chatRoom : roomsToDelete) {
+            roomList.remove(chatRoom);
+        }
+    }
+
+
     /*********************************************************************************************
      *  S2C Responses
      ********************************************************************************************/
@@ -225,7 +239,7 @@ public class ChatServer {
                     roomChange(connection, previousRoom.roomName, requestedRoom.roomName, requester.guestName);
                 }
             }
-
+            checkAndDeleteRooms();  // If a room (other than MainHall) is empty, then it is deleted.
         } else {
             String response = "Requested room is invalid or non existent";
             String marshalledResponse = marshallToJSON(response);
@@ -241,6 +255,7 @@ public class ChatServer {
         if (validNewRoomID(roomid)) {
             ChatRoom newRoom = new ChatRoom(roomid, requester);
             roomList.add(newRoom);
+            requester.ownedRooms.add(newRoom);
             System.out.format("[Server]: %s created room: %s\n", requester.guestName, roomid);
         }
         roomListRequest(requester);
@@ -300,6 +315,7 @@ public class ChatServer {
             System.out.println("[Server] : room has been emptied - now deleting");
             roomList.remove(targetRoom);
             roomListRequest(requester);
+            requester.ownedRooms.remove(targetRoom);
         } else {
             String response = String.format("%s is not a valid room or you do not have admin privileges.\n", roomID);
             String marshalledResponse = marshallToJSON(response);
@@ -484,6 +500,7 @@ public class ChatServer {
         private String guestName;
         private ChatRoom currentRoom;
         private boolean connectionAlive = true;
+        private ArrayList<ChatRoom> ownedRooms = new ArrayList<>();
 
 
         public ClientConnection(Socket socket) throws IOException {
@@ -498,11 +515,6 @@ public class ChatServer {
         public void sendMessage(String marshalledMessage) {
             writer.print(marshalledMessage);
             writer.flush();
-        }
-
-
-        public void moveRoom(ChatRoom newRoom) {
-
         }
 
 

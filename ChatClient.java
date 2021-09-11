@@ -16,7 +16,6 @@ public class ChatClient {
     private static final String location = "localhost";
     private static final boolean connectionAlive = true;
     private static String id = "";
-    private static String currentRoom = "MainHall";
     private static String newRoomName = null;// when client makes #createroom request, they receive a roomList response
                                              // with the new room if successful. This variable is overridden at the
                                              // #createroom request, to verify if the room was successfully created.
