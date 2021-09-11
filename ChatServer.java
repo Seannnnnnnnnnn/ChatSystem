@@ -47,6 +47,15 @@ public class ChatServer {
     }
 
 
+    static void updateAdminToNull(ClientConnection connection) {
+        /* When a client connection is closed, we must update all rooms that they are admin for to have a null
+        admin. */
+        List<ChatRoom> connectionRooms = connection.ownedRooms;
+        for (ChatRoom chatRoom : connectionRooms) {
+            chatRoom.setAdminToNull();
+        }
+    }
+
     static boolean validIdentity(String potentialID) {
         /* function for determining if potentialID is valid and not in use */
         if (!isAlphaNumeric(potentialID)) { return false; }
@@ -102,6 +111,7 @@ public class ChatServer {
         } else { return false; }
     }
 
+
     static String getRooms() {
         /* returns an ArrayList containing room ids and room counts */
         ArrayList<String> rooms = new ArrayList<>();
@@ -120,7 +130,7 @@ public class ChatServer {
         ArrayList<String> roomMembers = new ArrayList<>();
         assert  requestedRoom != null;
         for (ClientConnection connection : requestedRoom.roomMembers) {
-            if (requestedRoom.admin.equals(connection)) {
+            if (connection.equals(requestedRoom.admin)) {
                 roomMembers.add(connection.guestName+"*");
             } else {
                 roomMembers.add(connection.guestName);
@@ -268,11 +278,14 @@ public class ChatServer {
         if (roomExists(roomID)) {
             ChatRoom room = getRoom(roomID);
             assert room != null;
-            String roomMembers = getRoomMembers(roomID);
+            String roomMembers = getRoomMembers(roomID);  // problem here
             roomContents.put("type", "roomcontents");
-            roomContents.put("room id", roomID);
-            roomContents.put("identites", roomMembers); // can't raise NullPointerException, as we always return at least '[]'
-            roomContents.put("owner", room.admin.guestName);
+            roomContents.put("roomid", roomID);
+            roomContents.put("identities", roomMembers); // can't raise NullPointerException, as we always return at least '[]'
+            if (room.admin != null) {
+                roomContents.put("owner", room.admin.guestName);
+            }
+            else { roomContents.put("owner", ""); }
             connection.sendMessage(roomContents + "\n");
         }
         else {
@@ -324,7 +337,7 @@ public class ChatServer {
     }
 
 
-    /*******************************************************************************************
+    /********************************************************************************************
      *  Server management and console logging
      *******************************************************************************************/
 
@@ -333,8 +346,11 @@ public class ChatServer {
         /* Manages the closing of a client connection. Broadcasts to all users that client has left. Reduces room
         count of users current room  */
         broadcastToAll(String.format("[Server] : %s has left the chat", connection.guestName));
+        updateAdminToNull(connection);
         connection.currentRoom.roomMembers.remove(connection);
         connectionList.remove(connection);
+        connection.connectionAlive = false;    // exit the main listening loop
+        connection.interrupt();
     }
 
 
@@ -436,7 +452,7 @@ public class ChatServer {
     static class ChatRoom {
         /* Implements the different rooms. Within chatRoom subclass, we contain list of all users within room. */
         private final String roomName;
-        private final ClientConnection admin;
+        private ClientConnection admin;
         private final List<ClientConnection> roomMembers = new ArrayList<>();
 
 
@@ -446,24 +462,13 @@ public class ChatServer {
         }
 
 
-        public int getRoomSize() {
-            return roomMembers.size();
-        }
+        public int getRoomSize() { return roomMembers.size(); }
 
 
-        public String stringifyRoomMembers() {
-            /* stringifies the RoomMembers CURRENTLY THROWS SOME BULLSHIT */
-            if (roomMembers.size() == 0) { return "[]"; }
-            StringBuilder room = new StringBuilder();
-            for (ClientConnection connection : roomMembers) {
-                room.append(connection.guestName).append(" ");
-            }
-            return room.toString();
-        }
+        public void leaveRoom(ClientConnection connection) { roomMembers.remove(connection); }
 
 
         public void joinRoom(ClientConnection connection) {
-            // broadcastToAll(String.format("[Server] : %s has joined %s", connection.guestName, roomName));
             ChatRoom formerRoom = connection.currentRoom;
             formerRoom.leaveRoom(connection);
             connection.currentRoom = this;
@@ -471,7 +476,9 @@ public class ChatServer {
         }
 
 
-        public void leaveRoom(ClientConnection connection) { roomMembers.remove(connection); }
+        public void setAdminToNull(){
+            admin = null;
+        }
 
 
         private void broadcastToRoom(String message) {

@@ -14,7 +14,7 @@ import java.util.List;
 public class ChatClient {
     private static final int serverPort = 4444;
     private static final String location = "localhost";
-    private static final boolean connectionAlive = true;
+    private static boolean connectionAlive = true;
     private static String id = "";
     private static String newRoomName = null;// when client makes #createroom request, they receive a roomList response
                                              // with the new room if successful. This variable is overridden at the
@@ -36,6 +36,11 @@ public class ChatClient {
             Thread writer = new Writer(socket);
             listener.start();
             writer.start();
+            if (!socket.isConnected()) {
+                listener.interrupt();
+                writer.interrupt();
+                System.out.println("Exited process on local host");
+            }
         } catch (IOException e) {
             e.getStackTrace();
         }
@@ -60,7 +65,9 @@ public class ChatClient {
             String remainder = keyboardInput.replaceFirst(type, "").trim();
 
             if (type.equals("#quit")) {
-                jsonRepresentation.put("type","quit");
+                jsonRepresentation.put("type","quit");   // close on Server
+                connectionAlive = false;                 // close on Client
+                System.out.println("Disconnected from localhost");
             }
 
             else if (type.equals("#newidentity")) {
@@ -129,13 +136,6 @@ public class ChatClient {
 
             else if (messageType.equals("roomlist")) {
                 roomList(unmarshalled);
-            }
-
-            else if (messageType.equals("roomcontents")) {
-                System.out.println("printing room contents: \n");
-                String roomName = unmarshalled.get("roomid").toString();
-                String roomMembers = unmarshalled.get("roomcontents").toString();
-                System.out.format("Current members of %s are : %s\n", roomName, roomMembers);
             }
 
         } catch (ParseException e) {
@@ -236,27 +236,23 @@ public class ChatClient {
     }
 
 
-    static List<String> getNamesFromResponse(JSONObject unmarshalledResponse) {
+    static String getNamesFromResponse(JSONObject unmarshalledResponse) {
         /* Method to extract room ids from response to a List */
-        String roomsResponse = unmarshalledResponse.get("identities").toString();
-        List<String> roomArray = new ArrayList<>();
-        try {
-            JSONArray roomsList = unmarshallJSONArray(roomsResponse);
-            for (Object entry : roomsList) {
-                JSONObject unmarshalledEntry = unmarshallJSON(entry.toString());
-                roomArray.add(unmarshalledEntry.get("roomid").toString());
-            }
-        } catch (ParseException e) {
-            e.printStackTrace();
+        String identitiesResponse = unmarshalledResponse.get("identities").toString();
+        String parsed = identitiesResponse.substring(1, identitiesResponse.length()-2); // JSON response wraps names in [ ]
+        String[] parsedArray = parsed.split(",\\s");
+        StringBuilder roomMembers = new StringBuilder();
+        for (String s : parsedArray) {
+            roomMembers.append(s).append(" ");
         }
-        return roomArray;
+        return roomMembers.toString();
     }
 
 
     static void roomContents(JSONObject unmarshalledResponse) {
         String roomid = unmarshalledResponse.get("roomid").toString();
-        String identities = unmarshalledResponse.get("identities").toString();
-        System.out.format("[%s] : %s\n", roomid, identities);
+        String roomContents = getNamesFromResponse(unmarshalledResponse);
+        System.out.format("[%s] contains : %s\n", roomid, roomContents);
     }
 
 
