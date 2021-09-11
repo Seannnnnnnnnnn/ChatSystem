@@ -1,11 +1,14 @@
 package com.ChatRoomApplication;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class ChatClient {
@@ -22,6 +25,11 @@ public class ChatClient {
     public static void main(String[] args) { establishConnection(); }
 
 
+    /*******************************************************************************************
+     *  Client connection management
+     *******************************************************************************************/
+
+
     public static void establishConnection() {
         try {
             Socket socket = new Socket(location, serverPort);
@@ -33,6 +41,11 @@ public class ChatClient {
             e.getStackTrace();
         }
     }
+
+
+    /*******************************************************************************************
+     *  JSON Handling - marshalling / unmarshalling, C2S request management
+     *******************************************************************************************/
 
 
     public static String marshallJSON(String keyboardInput) {
@@ -93,68 +106,6 @@ public class ChatClient {
     }
 
 
-    static void newIdentity(JSONObject unmarshalledResponse){
-        if (id.equals(unmarshalledResponse.get("former")) && !id.equals(unmarshalledResponse.get("identity"))) {
-            id = unmarshalledResponse.get("identity").toString();
-            System.out.format("Changed identity to : %s\n", id);
-        } else if (id.equals(unmarshalledResponse.get("former")) && id.equals(unmarshalledResponse.get("identity"))) {
-            System.out.println("identity invalid or already in use\n");
-        } else {
-            System.out.format("%s changed their identity to %s\n", unmarshalledResponse.get("former"),
-                              unmarshalledResponse.get("identity"));
-        }
-    }
-
-
-    static void roomChange(JSONObject unmarshalledResponse) {
-        if (!id.equals(unmarshalledResponse.get("identity"))) {
-            System.out.format("%s changed room to %s\n", unmarshalledResponse.get("identity"),
-                              unmarshalledResponse.get("roomid"));
-        }
-        else {
-            System.out.format("moved to %s\n", unmarshalledResponse.get("roomid"));
-        }
-    }
-
-
-    static void roomList(JSONObject unmarshalledResponse) {
-        String currentRooms = unmarshalledResponse.get("rooms").toString();
-        if (newRoomName != null && currentRooms.contains(newRoomName)) {  // if newRoomName is not null, then roomList message was received as part of the #creatroom protocol
-            System.out.format("Room %s created\n", newRoomName);
-            newRoomName = null;
-
-        } else if (newRoomName != null && !currentRooms.contains(newRoomName)){
-            System.out.format("Room %s is invalid, or already in use\n", newRoomName);
-            newRoomName = null;
-
-        } else {
-            System.out.println("current rooms: ");
-            System.out.println(unmarshalledResponse.get("rooms"));
-            System.out.println(getRoomsFromResponse(unmarshalledResponse));
-        }
-    }
-
-
-    static String getRoomsFromResponse(JSONObject unmarshalledArray) {
-        /* Method to stringify the room contents from the server response */
-        return "";
-    }
-
-
-    static void roomContents(JSONObject unmarshalledResponse) {
-        String roomid = unmarshalledResponse.get("roomid").toString();
-        String identities = unmarshalledResponse.get("identities").toString();
-        System.out.format("[%s] : %s\n", roomid, identities);
-    }
-
-
-    private static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
-        /* Unmarshalls messages received from server */
-        JSONParser unmarshaller = new JSONParser();
-        return (JSONObject) unmarshaller.parse(serverMessage);
-    }
-
-
     static void handleJSON(String serverMessage) {
         /* Method for managing all S2C requests. First unmarshalls serverMessage then performs action accordingly */
         try {
@@ -194,6 +145,110 @@ public class ChatClient {
     }
 
 
+    private static JSONObject unmarshallJSON(String serverMessage) throws ParseException{
+        /* Unmarshalls messages received from server */
+        JSONParser unmarshaller = new JSONParser();
+        return (JSONObject) unmarshaller.parse(serverMessage);
+    }
+
+
+    private static JSONArray unmarshallJSONArray(String serverMessage) throws ParseException{
+        /* Unmarshalls messages received from server */
+        JSONParser unmarshaller = new JSONParser();
+        return (JSONArray) unmarshaller.parse(serverMessage);
+    }
+
+
+    /*******************************************************************************************
+     *  S2C Response Management
+     *******************************************************************************************/
+
+
+    static void newIdentity(JSONObject unmarshalledResponse){
+        if (id.equals(unmarshalledResponse.get("former")) && !id.equals(unmarshalledResponse.get("identity"))) {
+            id = unmarshalledResponse.get("identity").toString();
+            System.out.format("Changed identity to : %s\n", id);
+        } else if (id.equals(unmarshalledResponse.get("former")) && id.equals(unmarshalledResponse.get("identity"))) {
+            System.out.println("identity invalid or already in use\n");
+        } else {
+            System.out.format("%s changed their identity to %s\n", unmarshalledResponse.get("former"),
+                              unmarshalledResponse.get("identity"));
+        }
+    }
+
+
+    static void roomChange(JSONObject unmarshalledResponse) {
+        if (!id.equals(unmarshalledResponse.get("identity"))) {
+            System.out.format("%s changed room to %s\n", unmarshalledResponse.get("identity"),
+                              unmarshalledResponse.get("roomid"));
+        }
+        else {
+            System.out.format("moved to %s\n", unmarshalledResponse.get("roomid"));
+        }
+    }
+
+
+    static void roomList(JSONObject unmarshalledResponse) {
+        List<String> currentRoomsArray = getRoomsFromResponse(unmarshalledResponse);
+        if (newRoomName != null && currentRoomsArray.contains(newRoomName)) {  // if newRoomName is not null, then roomList message was received as part of the #creatroom protocol
+            System.out.format("Room %s created\n", newRoomName);
+            newRoomName = null;
+
+        } else if (newRoomName != null && !currentRoomsArray.contains(newRoomName)){
+            System.out.format("Room %s is invalid, or already in use\n", newRoomName);
+            newRoomName = null;
+
+        } else {
+            System.out.println("current rooms: ");
+            printRoomsFromResponse(unmarshalledResponse);
+        }
+    }
+
+
+    static void printRoomsFromResponse(JSONObject unmarshalledResponse) {
+        /* Method to pretty print the room contents from the server response */
+        String roomsResponse = unmarshalledResponse.get("rooms").toString();
+        try {
+            JSONArray roomsList = unmarshallJSONArray(roomsResponse);
+            for (Object entry : roomsList) {
+                JSONObject unmarshalledEntry = unmarshallJSON(entry.toString());
+                System.out.format("%s : %s guests\n", unmarshalledEntry.get("roomid"), unmarshalledEntry.get("count"));
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    static List<String> getRoomsFromResponse(JSONObject unmarshalledResponse) {
+        /* Method to extract room ids from response to a List */
+        String roomsResponse = unmarshalledResponse.get("rooms").toString();
+        List<String> roomArray = new ArrayList<>();
+        try {
+            JSONArray roomsList = unmarshallJSONArray(roomsResponse);
+            for (Object entry : roomsList) {
+                JSONObject unmarshalledEntry = unmarshallJSON(entry.toString());
+                roomArray.add(unmarshalledEntry.get("roomid").toString());
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return roomArray;
+    }
+
+
+    static void roomContents(JSONObject unmarshalledResponse) {
+        String roomid = unmarshalledResponse.get("roomid").toString();
+        String identities = unmarshalledResponse.get("identities").toString();
+        System.out.format("[%s] : %s\n", roomid, identities);
+    }
+
+
+    /*******************************************************************************************
+     *  Writer Thread for listening to client keyboard input
+     *******************************************************************************************/
+
+
     private static class Writer extends Thread {
         /* Thread for handling the writing and flushing of client messages */
         PrintWriter writer;
@@ -221,6 +276,11 @@ public class ChatClient {
             }
         }
     }
+
+
+    /*******************************************************************************************
+     *  Listener thread - listening for server response / messages
+     *******************************************************************************************/
 
 
     private static class Listener extends Thread {

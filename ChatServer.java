@@ -27,7 +27,7 @@ public class ChatServer {
 
 
     /********************************************************************************************
-    * helper functions - marshalling / unmarshalling, validation checking ect
+    * helper methods - marshalling / unmarshalling, validation checking, List operations ect
     ********************************************************************************************/
 
 
@@ -176,13 +176,13 @@ public class ChatServer {
     }
 
 
-    static void roomChange(ClientConnection clientConnection, String former, String roomid) {
+    static void roomChange(ClientConnection clientConnection, String former, String roomID, String clientIdentity) {
         /* method for creating RoomChange message and sending to client */
         JSONObject roomChangeJSON = new JSONObject();
         roomChangeJSON.put("type", "roomchange");
-        roomChangeJSON.put("identity", clientConnection.getId());
+        roomChangeJSON.put("identity", clientIdentity);
         roomChangeJSON.put("former", former);
-        roomChangeJSON.put("roomid", roomid);
+        roomChangeJSON.put("roomid", roomID);
         clientConnection.sendMessage(roomChangeJSON+"\n");
     }
 
@@ -196,19 +196,19 @@ public class ChatServer {
             ChatRoom previousRoom = requester.currentRoom;
             requestedRoom.joinRoom(requester);
             System.out.format("[Server] : %s moved to %s\n", requester.guestName, requestedRoom.roomName);
-            roomChange(requester, previousRoom.roomName, requestedRoom.roomName);
+            roomChange(requester, previousRoom.roomName, requestedRoom.roomName, requester.guestName);
 
             /* If the room did change, then server will send a RoomChange message to all
             clients currently in the requesting client’s current room and the requesting
             client’s requested room */
             for (ClientConnection connection : previousRoom.roomMembers) {
                 if (!connection.equals(requester)) {
-                    roomChange(connection, previousRoom.roomName, requestedRoom.roomName);
+                    roomChange(connection, previousRoom.roomName, requestedRoom.roomName, requester.guestName);
                 }
             }
             for (ClientConnection connection : requestedRoom.roomMembers) {
                 if (!connection.equals(requester)) {
-                    roomChange(connection, previousRoom.roomName, requestedRoom.roomName);
+                    roomChange(connection, previousRoom.roomName, requestedRoom.roomName, requester.guestName);
                 }
             }
 

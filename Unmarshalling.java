@@ -1,31 +1,23 @@
 package com.ChatRoomApplication;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-
 public class Unmarshalling {
     public static void main(String[] args) {
-        String marshalledToString = marshallJSON();
-        System.out.println(marshalledToString);
+        String example = "[{\"count\":0,\"roomid\":\"MainHall\"}, {\"count\":1,\"roomid\":\"jokes\"}]";
         try {
-            JSONObject unmarshalled = unmarshallJSON(marshalledToString);
-            System.out.println(unmarshalled);
-            System.out.println(unmarshalled.get("people"));
+            JSONArray unmarshalled = unmarshallJSONArray(example);
+            for (Object entry : unmarshalled) {
+                JSONObject unmarshalledEntry = unmarshallJSON(entry.toString());
+                System.out.println(unmarshalledEntry.get("roomid").toString());
+            }
         } catch (ParseException e) {
             e.printStackTrace();
+            System.out.println("can't unmarshall that");
         }
-    }
-
-    public static String marshallJSON() {
-        String arrayExample = marshallExample();
-        JSONObject marshelled = new JSONObject();
-        marshelled.put("admin", "me");
-        marshelled.put("people", arrayExample);
-        return marshelled+"\n";
     }
 
 
@@ -36,20 +28,9 @@ public class Unmarshalling {
     }
 
 
-    private static String marshallExample() {
-        ArrayList<String> exampleArray = new ArrayList<>();
-        ArrayList<String> names = new ArrayList<>();
-        names.add("John");
-        names.add("Michael");
-        names.add("William");
-
-        for (String name : names) {
-            JSONObject JSONRepresenation = new JSONObject();
-            JSONRepresenation.put("name", name);
-            JSONRepresenation.put("age", 15);
-            exampleArray.add(JSONRepresenation.toString());
-        }
-
-        return exampleArray + "\n";
+    private static JSONArray unmarshallJSONArray(String serverMessage) throws ParseException{
+        /* Unmarshalls messages received from server */
+        JSONParser unmarshaller = new JSONParser();
+        return (JSONArray) unmarshaller.parse(serverMessage);
     }
 }
