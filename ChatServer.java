@@ -115,6 +115,20 @@ public class ChatServer {
     }
 
 
+    static String getRoomMembers(String roomID) {
+        ChatRoom requestedRoom = getRoom(roomID);
+        ArrayList<String> roomMembers = new ArrayList<>();
+        assert  requestedRoom != null;
+        for (ClientConnection connection : requestedRoom.roomMembers) {
+            if (requestedRoom.admin.equals(connection)) {
+                roomMembers.add(connection.guestName+"*");
+            } else {
+                roomMembers.add(connection.guestName);
+            }
+        }
+        return roomMembers + "\n";
+    }
+
     static void moveToMainHall(ClientConnection connection) {
         /* Special method to avoid concurrent modification exception when performing a room delete */
         ChatRoom MainHall = getRoom("MainHall");
@@ -237,12 +251,13 @@ public class ChatServer {
         /* returns room id, room owner and room members to connection */
         JSONObject roomContents = new JSONObject();
         if (roomExists(roomID)) {
-            //TODO: Fix this branch of the code. Not working for some reason with MainHall
             ChatRoom room = getRoom(roomID);
+            assert room != null;
+            String roomMembers = getRoomMembers(roomID);
             roomContents.put("type", "roomcontents");
             roomContents.put("room id", roomID);
-            roomContents.put("identites", room.stringifyRoomMembers()); // can't raise NullPointerException, as we always return at least '[]'
-            roomContents.put("owner", room.admin);
+            roomContents.put("identites", roomMembers); // can't raise NullPointerException, as we always return at least '[]'
+            roomContents.put("owner", room.admin.guestName);
             connection.sendMessage(roomContents + "\n");
         }
         else {
@@ -340,7 +355,7 @@ public class ChatServer {
                 clientConnectionThread.start();
                 addClientConnection(clientConnection);
                 mainHall.joinRoom(clientConnection);
-                // roomContents(clientConnection, mainHall);                         // TESTING //
+                roomListRequest(clientConnection);                                  // user is greeted with list of current rooms
             }
         } catch (IOException e) {
             e.getStackTrace();

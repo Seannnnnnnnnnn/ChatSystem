@@ -237,6 +237,23 @@ public class ChatClient {
     }
 
 
+    static List<String> getNamesFromResponse(JSONObject unmarshalledResponse) {
+        /* Method to extract room ids from response to a List */
+        String roomsResponse = unmarshalledResponse.get("identities").toString();
+        List<String> roomArray = new ArrayList<>();
+        try {
+            JSONArray roomsList = unmarshallJSONArray(roomsResponse);
+            for (Object entry : roomsList) {
+                JSONObject unmarshalledEntry = unmarshallJSON(entry.toString());
+                roomArray.add(unmarshalledEntry.get("roomid").toString());
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return roomArray;
+    }
+
+
     static void roomContents(JSONObject unmarshalledResponse) {
         String roomid = unmarshalledResponse.get("roomid").toString();
         String identities = unmarshalledResponse.get("identities").toString();
