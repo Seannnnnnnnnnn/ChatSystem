@@ -5,4 +5,10 @@ change between rooms, change user id and so forth.
 
 
 ### Dependancies:
- - added simple-json 1.1.1 for marshalling/unmarshalling JSON requests for S2C and C2S interactions 
+ - added simple-json 1.1.1 for marshalling/unmarshalling JSON requests for S2C and C2S interactions
+
+
+### Why make this?: 
+Being new to Java and multi-threaded programming, I figured this would be a suitable challenge to 
+familiarise myself with these concepts, and gain a deeper understanding of implementing the central
+ideas of distributed programming.
