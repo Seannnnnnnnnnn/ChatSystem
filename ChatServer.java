@@ -28,7 +28,8 @@ public class ChatServer {
 
     /********************************************************************************************
     * helper functions - marshalling / unmarshalling, validation checking ect
-    ****************************************************************************************** */
+    ********************************************************************************************/
+
 
     static String marshallToJSON(String messageToClient) {
         /* Method for marshalling messages to client */
@@ -60,7 +61,8 @@ public class ChatServer {
 
     static boolean validNewRoomID(String potentialRoomID) {
         /* function for determining if potential room ID is not in use, starts with non-digit and
-        between 3 and 32 characters. potential room ID must also no currently be in use */
+        between 3 and 32 characters. potential room ID must also no currently be in use and only contain
+        alphanumeric characters */
         if (!isAlphaNumeric(potentialRoomID)) { return false; }
         if (Character.isDigit(potentialRoomID.charAt(0))) { return false; }
         if (potentialRoomID.length() < 3 | potentialRoomID.length() > 32) { return false; }
@@ -90,6 +92,16 @@ public class ChatServer {
     }
 
 
+    private static boolean isAdmin(ClientConnection connection, String roomID) {
+        /* returns true iff roomID exists and connection is admin */
+        if (roomExists(roomID)) {
+            ChatRoom targetRoom = getRoom(roomID);
+            if (targetRoom.admin.equals(connection)) {
+                return true;
+            } else { return false; }
+        } else { return false; }
+    }
+
     static String getRooms() {
         /* returns an ArrayList containing room ids and room counts */
         ArrayList<String> rooms = new ArrayList<>();
@@ -100,6 +112,15 @@ public class ChatServer {
             rooms.add(jsonRepresentation.toString());
         }
         return rooms + "\n";
+    }
+
+
+    static void moveToMainHall(ClientConnection connection) {
+        /* Special method to avoid concurrent modification exception when performing a room delete */
+        ChatRoom MainHall = getRoom("MainHall");
+        assert MainHall != null;    // if this is raised then something has gone very very wrong
+        connection.currentRoom = MainHall;
+        MainHall.roomMembers.add(connection);
     }
 
 
@@ -122,7 +143,7 @@ public class ChatServer {
 
     /*********************************************************************************************
      *  S2C Responses
-     ****************************************************************************************** */
+     ********************************************************************************************/
 
 
     static void newIdentity(ClientConnection connection, String former, String identity) {
@@ -174,12 +195,11 @@ public class ChatServer {
             assert requestedRoom != null;
             ChatRoom previousRoom = requester.currentRoom;
             requestedRoom.joinRoom(requester);
-            System.out.format("[Server] : %s moved to %s", requester.guestName, requestedRoom.roomName);
+            System.out.format("[Server] : %s moved to %s\n", requester.guestName, requestedRoom.roomName);
             roomChange(requester, previousRoom.roomName, requestedRoom.roomName);
             /* TODO: If the room did change, then server will send a RoomChange message to all
             clients currently in the requesting client’s current room and the requesting
-             client’s requested room
-            */
+            client’s requested room */
         } else {
             String response = "Requested room is invalid or non existent";
             String marshalledResponse = marshallToJSON(response);
@@ -231,9 +251,39 @@ public class ChatServer {
     }
 
 
+    static void deleteRoom(ClientConnection requester, JSONObject unmarshalled) {
+        /* if requester is room admin, moves all current room connections to MainHall, then
+        deletes room from room list. Responds with roomList S2C response to requester */
+        String roomID = unmarshalled.get("roomid").toString();
+        if (isAdmin(requester, roomID)) {
+            ChatRoom targetRoom = getRoom(unmarshalled.get("roomid").toString());
+            assert targetRoom != null;
+
+            /* if we iterate over the list of live connections in the target room and attempt to reassign
+            them to MainHall, we receive a concurrent modification exception, as cannot remove things from
+            a list whilst iterating over it. We create a special method for moving connections to "MainHall"
+            in the event of a roomDelete. */
+            for (ClientConnection connection : targetRoom.roomMembers) {
+                String notification = String.format("%s has been deleted. Moving to MainHall", roomID);
+                String marshalledResponse = marshallToJSON(notification);
+                requester.sendMessage(marshalledResponse);
+                moveToMainHall(connection);
+                System.out.format("[Sever] : moving %s from %s...\n", connection.guestName, roomID);
+            }
+            System.out.println("[Server] : room has been emptied - now deleting");
+            roomList.remove(targetRoom);
+            roomListRequest(requester);
+        } else {
+            String response = String.format("%s is not a valid room or you do not have admin privileges.\n", roomID);
+            String marshalledResponse = marshallToJSON(response);
+            requester.sendMessage(marshalledResponse);
+        }
+    }
+
+
     /*******************************************************************************************
      *  Server management and console logging
-     ****************************************************************************************** */
+     *******************************************************************************************/
 
 
     static synchronized void closeClientConnection(ClientConnection connection) {
@@ -311,6 +361,10 @@ public class ChatServer {
                 roomContents(clientConnection, unmarshalled.get("roomid").toString());
             }
 
+            else if (messageType.equals("delete")) {
+                deleteRoom(clientConnection, unmarshalled);
+            }
+
             else if (messageType.equals("createroom")) {
                 createRoomRequest(clientConnection, unmarshalled);
             }
@@ -373,14 +427,12 @@ public class ChatServer {
             roomMembers.add(connection);
         }
 
-        public void leaveRoom(ClientConnection connection) {
-            roomMembers.remove(connection);
-        }
+
+        public void leaveRoom(ClientConnection connection) { roomMembers.remove(connection); }
+
 
         private void broadcastToRoom(String message) {
-            /*
-            Broadcasts message to ClientConnection's in roomMembers
-            */
+            /* Broadcasts message to ClientConnection's in roomMembers */
             for (ClientConnection connection: roomMembers) {
                 if (connection != null) {
                     String finalisedString = String.format("[%s] : %s\n", roomName, message);
@@ -419,6 +471,11 @@ public class ChatServer {
         public void sendMessage(String marshalledMessage) {
             writer.print(marshalledMessage);
             writer.flush();
+        }
+
+
+        public void moveRoom(ChatRoom newRoom) {
+
         }
 
 

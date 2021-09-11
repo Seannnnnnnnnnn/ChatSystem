@@ -25,12 +25,10 @@ public class ChatClient {
     public static void establishConnection() {
         try {
             Socket socket = new Socket(location, serverPort);
-
             Thread listener = new Listener(socket);
             Thread writer = new Writer(socket);
             listener.start();
             writer.start();
-
         } catch (IOException e) {
             e.getStackTrace();
         }
