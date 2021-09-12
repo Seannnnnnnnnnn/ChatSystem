@@ -36,14 +36,15 @@ public class ChatClient {
             Thread writer = new Writer(socket);
             listener.start();
             writer.start();
-            if (!socket.isConnected()) {
-                listener.interrupt();
-                writer.interrupt();
-                System.out.println("Exited process on local host");
-            }
         } catch (IOException e) {
             e.getStackTrace();
         }
+    }
+
+
+    public static void terminateProgram() {
+        System.out.println("Connection interrupted. Disconnected from local host");
+        connectionAlive = false;
     }
 
 
@@ -313,8 +314,8 @@ public class ChatClient {
                 try {
                     String input = reader.readLine();
                     handleJSON(input);
-                } catch (IOException e) {
-                    e.printStackTrace();
+                } catch (IOException | NullPointerException e) {
+                    terminateProgram();
                 }
             }
         }

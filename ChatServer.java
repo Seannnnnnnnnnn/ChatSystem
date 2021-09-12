@@ -548,7 +548,8 @@ public class ChatServer {
                         connectionAlive = false;
                     }
                 } catch (IOException | NullPointerException e) {
-                    e.printStackTrace();
+                    System.out.format("[Server] : TCP connection to %s interrupted, terminating connection\n",
+                                      guestName);
                     break;
                 }
             }
