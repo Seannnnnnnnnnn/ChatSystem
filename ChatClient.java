@@ -30,6 +30,7 @@ public class ChatClient {
 
 
     public static void establishConnection() {
+        /* Attempts to establish TCP connection on serverPort on localhost. Initiates threads if successful */
         try {
             Socket socket = new Socket(location, serverPort);
             Thread listener = new Listener(socket);

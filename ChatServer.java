@@ -56,8 +56,20 @@ public class ChatServer {
         }
     }
 
+
+    static boolean guestNameInUse(String name) {
+        /* Returns true if guestName is currently used by someone else */
+        for (ClientConnection clientConnection : connectionList) {
+            String clientConnectionName = clientConnection.guestName;
+            if (clientConnectionName.equals(name)) { return true; }
+        }
+        return false;
+    }
+
+
     static boolean validIdentity(String potentialID) {
         /* function for determining if potentialID is valid and not in use */
+        if (guestNameInUse(potentialID)) { return false; }
         if (!isAlphaNumeric(potentialID)) { return false; }
         if (Character.isDigit(potentialID.charAt(0))) { return false; }
         if (potentialID.length() < 3 | potentialID.length() > 16) { return false; }
