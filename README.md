@@ -12,4 +12,4 @@ change between rooms, change user id and so forth.
 ### Why did I make this?
 Being new to Java and multi-threaded programming, I figured this would be a suitable challenge to 
 familiarise myself with these concepts, and gain a deeper understanding of implementing the central
-ideas of distributed programming.
+ideas of a distributed system.
