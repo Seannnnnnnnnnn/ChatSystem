@@ -13,3 +13,12 @@ change between rooms, change user id and so forth.
 Being new to Java and multi-threaded programming, I figured this would be a suitable challenge to 
 familiarise myself with these concepts, and gain a deeper understanding of implementing the central
 ideas of a distributed system.
+
+
+### What does it do? 
+The `chatserver` acts (unsurprisingly) as the server, maintaining information and handling requests from client connections. The server also logs all activity to the console for our convenience. The `chatclient` works as the client; running from the command line, users connect via the client and can message back and forth by writing to the console. Users can make the following requests: 
+  - `#createroom` followed by a valid room name to create a new chatroom
+  - `#join` followed by a valid room name to join a new room
+  - `#delete` followed by a valid room name that the client created, to delete the room and move all members to a Main Hall. 
+  - `#who` followed by a valid room name to query the members of said room
+  - `#newidentity` followed by a valid user identity to change how their name appears
