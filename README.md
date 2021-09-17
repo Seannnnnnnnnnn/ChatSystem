@@ -14,6 +14,9 @@ Being new to Java and multi-threaded programming, I figured this would be a suit
 familiarise myself with these concepts, and gain a deeper understanding of implementing the central
 ideas of a distributed system.
 
+This is a project in exploring and implementing these concepts, not an exercise in expert software engineeering. There are a few
+antipatterns within the code and things could be tidied up. For the most part however, I am very happy with the final 
+product
 
 ### What does it do? 
 The `chatserver` acts (unsurprisingly) as the server, maintaining information and handling requests from client connections. The server also logs all activity to the console for our convenience. The `chatclient` works as the client; running from the command line, users connect via the client and can message back and forth by writing to the console. Users can make the following requests: 
