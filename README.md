@@ -15,7 +15,7 @@ familiarise myself with these concepts, and gain a deeper understanding of imple
 ideas of a distributed system.
 
 This is a project in exploring and implementing these concepts, not an exercise in expert software engineeering. There are a few
-antipatterns within the code and things could be tidied up. For the most part however, I am very happy with the final 
+antipatterns within the code and things could be tidied up. For the most part however, I am very happy with the final. 
 product
 
 ### What does it do? 
